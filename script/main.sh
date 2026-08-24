@@ -44,8 +44,8 @@ main() {
     rollback|--rollback|-r) cmd_rollback ;;
     panel|dash|dashboard) cmd_dashboard ;;
     auto)
-      # 自动判断：live 环境（/mnt 有 etc/nixos）→ install；已装系统 → 管理面板
-      if [[ -d /mnt/etc/nixos && -f /mnt/etc/nixos/hardware-configuration.nix ]]; then
+      # 自动判断：live 环境（$MOUNT_ROOT 有 etc/nixos）→ install；已装系统 → 管理面板
+      if [[ -d "$MOUNT_ROOT/etc/nixos" && -f "$MOUNT_ROOT/etc/nixos/hardware-configuration.nix" ]]; then
         cmd_install
       else
         cmd_dashboard

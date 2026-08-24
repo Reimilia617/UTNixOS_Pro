@@ -50,13 +50,21 @@ if [[ -z "$SCRIPT_SRC" ]]; then
   trap 'rm -rf "$BOOT_TMP"' EXIT
   echo "[*] 正在从 GitHub 获取 UTNixOS 脚本..."
   if command -v git >/dev/null 2>&1; then
+    # 注意：clone 失败不能触发 set -e 退出，必须留给下面的 curl|tar 回退分支。
     if [[ "$no_apple" == "1" ]]; then
       # 稀疏检出：跳过 media/（badapple.mp4），加快下载
-      git clone --depth 1 --filter=blob:none --sparse "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1 \
-        && git -C "$BOOT_TMP" sparse-checkout set --no-cone '/*' '!/media/' >/dev/null 2>&1 \
-        || { rm -rf "$BOOT_TMP"; git clone --depth 1 "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; }
+      if ! { git clone --depth 1 --filter=blob:none --sparse "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1 \
+        && git -C "$BOOT_TMP" sparse-checkout set --no-cone '/*' '!/media/' >/dev/null 2>&1; }; then
+        # 稀疏检出失败 → 回退普通克隆
+        rm -rf "$BOOT_TMP"
+        if ! git clone --depth 1 "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; then
+          rm -rf "$BOOT_TMP"; mkdir -p "$BOOT_TMP"   # 仍失败 → 交给 tarball 回退
+        fi
+      fi
     else
-      git clone --depth 1 "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1
+      if ! git clone --depth 1 "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; then
+        rm -rf "$BOOT_TMP"; mkdir -p "$BOOT_TMP"   # clone 失败 → 交给 tarball 回退
+      fi
     fi
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]] && command -v curl >/dev/null 2>&1; then

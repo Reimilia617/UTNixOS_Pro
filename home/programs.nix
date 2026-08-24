@@ -22,6 +22,10 @@
 
   programs.ssh = {
     enable = true;
+    # 显式关闭默认配置注入，消除 home-manager 弃用警告：
+    #   "programs.ssh default values will be removed in the future"
+    # （需要默认值时手动在 settings."*" 里写）
+    enableDefaultConfig = false;
     # 管理信任主机：~/.ssh/known_hosts 由 home-manager 接管后可在这里加
     # extraConfig = { Host "github.com" = { User = "git"; }; };
   };

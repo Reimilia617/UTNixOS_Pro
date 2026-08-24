@@ -56,6 +56,11 @@
       value = mkSystem host;
     }) hosts);
 
+    # 可单独构建的包：nix build .#webui
+    packages.${system} = {
+      webui = pkgs.callPackage ./webui { };
+    };
+
     # 代码格式化：nix fmt
     # （treefmt 本身不打包格式化器，这里把 nixfmt 加进 PATH 再调用）
     formatter.${system} = pkgs.writeShellScriptBin "utnixos-fmt" ''

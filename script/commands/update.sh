@@ -14,9 +14,20 @@ cmd_update() {
 
   info "从 GitHub 同步最新代码..."
   if [[ -d "$TARGET_DIR/.git" ]]; then
+    # 备份机器本地文件（Web 面板的软件包 / 硬件配置），更新后恢复，防止被 reset 覆盖
+    local bk
+    bk=$(mktemp -d)
+    cp -f hardware-configuration.nix "$bk/" 2>/dev/null || true
+    cp -f host/packages.nix "$bk/" 2>/dev/null || true
     git fetch origin >/dev/null 2>&1 || warn "git fetch 失败（网络问题？），将使用本地已有代码"
     git reset --hard origin/main >/dev/null 2>&1 || warn "git reset 失败，继续使用现有代码"
+    # 恢复机器本地文件（注意备份时是 $bk/packages.nix，不是 $bk/host/）
+    mkdir -p "$TARGET_DIR/host"
+    cp -f "$bk/hardware-configuration.nix" "$TARGET_DIR/" 2>/dev/null || true
+    cp -f "$bk/packages.nix" "$TARGET_DIR/host/" 2>/dev/null || true
+    rm -rf "$bk"
     git update-index --skip-worktree hardware-configuration.nix 2>/dev/null || true
+    git update-index --skip-worktree host/packages.nix 2>/dev/null || true
   else
     local tmp
     tmp=$(mktemp -d)
@@ -24,12 +35,15 @@ cmd_update() {
     # 备份机器专属文件
     cp -f hardware-configuration.nix "$tmp/" 2>/dev/null || true
     cp -f "$STATE_FILE" "$tmp/" 2>/dev/null || true
-    # 原子替换（保留一个 .old 以防万一）
-    rm -rf /etc/nixos.old
-    mv "$TARGET_DIR" /etc/nixos.old
+    mkdir -p "$tmp/host"
+    cp -f host/packages.nix "$tmp/host/" 2>/dev/null || true
+    # 原子替换（保留一个 .old 以防万一；路径跟随 TARGET_DIR，便于测试/多目录）
+    local old_dir="${TARGET_DIR}.old"
+    rm -rf "$old_dir"
+    mv "$TARGET_DIR" "$old_dir"
     mkdir -p "$TARGET_DIR"
     cp -r "$tmp/." "$TARGET_DIR/"
-    ok "代码已更新（旧配置备份在 /etc/nixos.old，确认没问题后可删除）"
+    ok "代码已更新（旧配置备份在 $old_dir，确认没问题后可删除）"
   fi
 
   # 重新应用上次的选择（configuration.nix 已回到默认状态）

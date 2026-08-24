@@ -23,4 +23,8 @@
 #   ]
 
 [
+  # UTNixOS Web 管理面板（自建包，见 webui/ 目录，由 modules/system/webui.nix 使用）
+  (final: prev: {
+    utnixos-webui = final.callPackage ../webui { };
+  })
 ]

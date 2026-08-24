@@ -234,6 +234,63 @@ curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS/main/install.sh | 
 
 ---
 
+# Web 管理面板（可选功能）
+
+UTNixOS 自带一个 **Web 管理面板**：浏览器里完成原本 `ut` 终端菜单能做的所有事。
+
+## 启用
+
+```
+ut menu    # 系统模块里勾选 webui，确认并重建
+# 或者手动取消 configuration.nix 中 ./modules/system/webui.nix 的注释后重建
+```
+
+重建完成后，**systemd 会自动启动**面板，浏览器打开：
+
+```
+http://127.0.0.1:8090
+```
+
+用**系统用户名和密码**登录（PAM 认证，与终端登录一致；只允许 `wheel` 组用户，可在模块里改 `allowedGroup`）。
+
+## 功能一览
+
+| 功能 | 说明 |
+| --- | --- |
+| 重建系统 | `nixos-rebuild switch`，实时输出控制台 |
+| 更新系统 | 同步 GitHub 代码 + 重建（等同 `ut update`） / 仅更新 Flake + 重建 |
+| 模块启停 | 读写 `configuration.nix`（与 `ut menu` 同一套选择逻辑，共用 `.utnixos-selection`） |
+| 软件包 | 搜索 nixpkgs、**声明式安装**（写入 `host/packages.nix`，重建后保留）、**临时安装**（`nix profile`，重建后失效） |
+| 时间点回滚 | 列出系统 generations（带时间），选择回滚 |
+| 系统日志 | `journalctl` 查看 + 实时跟踪（按服务过滤） |
+| 清理垃圾 | `nix-collect-garbage -d` |
+| 审计 | 所有操作记录在 `/var/lib/utnixos-webui/audit.log` |
+
+## 安全说明（重要）
+
+- 面板以 root 运行（需要执行 nixos-rebuild），**默认只监听 `127.0.0.1`，防火墙零开放**，不会暴露到公网。
+- 想在内网其他设备访问时，两种方式：
+  - **推荐**：保持 127.0.0.1，用 SSH 隧道 `ssh -L 8090:127.0.0.1:8090 user@主机`
+  - 或修改模块选项 `services.utnixos-webui = { address = "0.0.0.0"; allowLan = true; }` 开放防火墙端口（此时密码明文走网络，请仅在可信内网使用，或自备 HTTPS 反代）。
+- 登录有频率限制（1 分钟 5 次失败封禁）；所有输入（包名/模块/日志 unit）都有白名单校验，命令以参数数组执行，无 shell 注入面。
+
+## 自定义
+
+```nix
+services.utnixos-webui = {
+  enable = true;
+  port = 8090;                # 端口
+  address = "127.0.0.1";      # 监听地址（默认仅本机）
+  allowLan = false;           # 允许内网访问（开防火墙端口）
+  allowedGroup = "wheel";     # 允许登录的管理员组
+};
+```
+
+源码在 `webui/` 目录（Go + 原生 JS，零第三方依赖），可单独构建：`nix build .#webui`。
+`ut update` / Web 面板的「更新配置」会自动保留 `host/packages.nix` 和 `hardware-configuration.nix`。
+
+---
+
 # 脚本结构（跟 NixOS 配置一样是模块化的）
 
 bash 脚本与 NixOS 配置的 `modules/` 同理，拆成了小模块，方便维护和扩展：

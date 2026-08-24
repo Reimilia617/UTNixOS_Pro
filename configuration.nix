@@ -13,6 +13,7 @@
     ./modules/system/zram.nix     # Memory ZSTD
     ./modules/system/fonts.nix     # Fonts(默认启用)
     ./modules/system/ut.nix     # ut命令(UTNixOS管理接口)
+    #./modules/system/webui.nix     # Web管理面板(默认关闭,见文件内说明)
     #./modules/system/nopwdtodesktop.nix     # Auto Login
     #./modules/system/vm-debug.nix     # VM调试(无头启动,默认关闭,见文件内说明)
     #./modules/system/secrets.nix     # sops-nix密钥管理(模板,默认关闭)
@@ -65,6 +66,9 @@
 
     # Packages
     ./modules/packages/applications.nix     # Base App
+
+    # 机器本地文件（由 Web 管理面板自动维护，勿删除）
+    ./host/packages.nix     # Web 面板安装的软件包
   ];
 
   # Firmware

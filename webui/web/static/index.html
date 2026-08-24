@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UTNixOS 管理面板</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 登录页 -->
+<div id="loginView" class="login-view hidden">
+  <div class="login-card">
+    <div class="logo">UTNixOS</div>
+    <div class="logo-sub">Web 管理面板</div>
+    <form id="loginForm" autocomplete="off">
+      <label>系统用户名</label>
+      <input id="loginUser" type="text" autocomplete="username" required placeholder="例如 reimilia">
+      <label>系统密码</label>
+      <input id="loginPass" type="password" autocomplete="current-password" required placeholder="与登录系统/终端一致">
+      <div id="loginError" class="error hidden"></div>
+      <button type="submit">登 录</button>
+    </form>
+    <div class="login-tip">使用系统用户密码认证（PAM），仅允许管理员组（wheel）</div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="mainView" class="main-view hidden">
+  <header class="topbar">
+    <div class="brand">UTNixOS <span class="brand-sub">管理面板</span></div>
+    <div class="topbar-right">
+      <span id="opBadge" class="op-badge hidden"></span>
+      <span id="whoami" class="whoami"></span>
+      <button id="logoutBtn" class="btn btn-ghost">退出</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview">概览</button>
+    <button class="tab" data-tab="modules">模块</button>
+    <button class="tab" data-tab="packages">软件包</button>
+    <button class="tab" data-tab="rollback">回滚</button>
+    <button class="tab" data-tab="logs">日志</button>
+    <button class="tab" data-tab="audit">审计</button>
+  </nav>
+
+  <main>
+    <!-- 概览 -->
+    <section id="tab-overview" class="tab-panel active">
+      <div class="cards" id="statusCards"></div>
+      <div class="panel">
+        <h3>操作</h3>
+        <div class="actions">
+          <button class="btn btn-primary" data-op="rebuild">重建系统</button>
+          <button class="btn" data-op="update" data-mode="config">更新配置（同步 GitHub + 重建）</button>
+          <button class="btn" data-op="update" data-mode="flake">更新 Flake + 重建</button>
+          <button class="btn btn-danger" data-op="gc">清理构建垃圾</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>执行控制台 <span class="hint">（nixos-rebuild 等长任务的实时输出）</span></h3>
+        <div class="console" id="console"><div class="console-empty">暂无任务输出</div></div>
+      </div>
+    </section>
+
+    <!-- 模块 -->
+    <section id="tab-modules" class="tab-panel">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>配置模块（读写 /etc/nixos/configuration.nix）</h3>
+          <button id="applyModulesBtn" class="btn btn-primary">应用模块选择</button>
+        </div>
+        <div id="moduleGroups"></div>
+        <div class="note" id="moduleNote"></div>
+      </div>
+    </section>
+
+    <!-- 软件包 -->
+    <section id="tab-packages" class="tab-panel">
+      <div class="panel">
+        <h3>安装软件包</h3>
+        <div class="search-row">
+          <input id="pkgSearch" type="text" placeholder="搜索 nixpkgs 包（如 firefox / htop）...">
+          <button id="pkgSearchBtn" class="btn">搜索</button>
+        </div>
+        <div id="pkgResults" class="pkg-results"></div>
+        <div class="note" id="pkgNote"></div>
+      </div>
+      <div class="panel">
+        <h3>已安装（声明式 · 写入配置，重建后保留）</h3>
+        <div id="declPkgs" class="pkg-list"></div>
+      </div>
+      <div class="panel">
+        <h3>临时安装（nix profile · 重建系统后失效）</h3>
+        <div id="tempPkgs" class="pkg-list"></div>
+      </div>
+    </section>
+
+    <!-- 回滚 -->
+    <section id="tab-rollback" class="tab-panel">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>系统 Generations（时间点回滚）</h3>
+          <button id="rollbackBtn" class="btn btn-danger" disabled>回滚到选中项</button>
+        </div>
+        <table class="gens-table">
+          <thead><tr><th></th><th>Generation</th><th>时间</th><th>状态</th></tr></thead>
+          <tbody id="gensBody"></tbody>
+        </table>
+        <div class="note">回滚 = 切换系统 profile 到该 generation 并激活。若启动异常，可在 GRUB 菜单选择其他 generation。</div>
+      </div>
+    </section>
+
+    <!-- 日志 -->
+    <section id="tab-logs" class="tab-panel">
+      <div class="panel">
+        <div class="search-row">
+          <select id="logUnit"><option value="">全部服务</option></select>
+          <input id="logLines" type="number" value="200" min="10" max="5000" style="width:90px">
+          <button id="logLoadBtn" class="btn">加载日志</button>
+          <button id="logFollowBtn" class="btn btn-primary">实时跟踪</button>
+        </div>
+        <pre class="log-view" id="logView">加载中...</pre>
+      </div>
+    </section>
+
+    <!-- 审计 -->
+    <section id="tab-audit" class="tab-panel">
+      <div class="panel">
+        <h3>操作审计（谁在什么时候做了什么）</h3>
+        <pre class="log-view" id="auditView">加载中...</pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 任务进度弹窗 -->
+<div id="opModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="opTitle">任务执行中</span>
+      <button id="opCancelBtn" class="btn btn-ghost">取消</button>
+    </div>
+    <div class="console console-modal" id="opConsole"></div>
+    <div id="opSummary" class="op-summary hidden"></div>
+    <button id="opCloseBtn" class="btn hidden">关闭</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

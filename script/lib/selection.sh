@@ -47,7 +47,7 @@ apply_selection() {
 
   # 系统模块（多选）
   local m
-  for m in auto-update clean nix-command zram fonts nopwdtodesktop vm-debug; do
+  for m in auto-update clean nix-command zram fonts nopwdtodesktop vm-debug webui; do
     if [[ " $SYSTEM_MODULES " == *" $m "* ]]; then
       uncomment_import "$CFG" "system/${m}.nix"
     else
@@ -88,8 +88,26 @@ EOF
 load_state() {
   local st="$TARGET_DIR/$STATE_FILE"
   if [[ -f "$st" ]]; then
-    # shellcheck disable=SC1090
-    . "$st"
+    # 逐行解析，不能用 . (source)！
+    # 原因：SYSTEM_MODULES=auto-update clean nix-command ... 这类多值行被 source 时，
+    # shell 会把「clean nix-command ...」当成命令执行（clean: command not found + set -e 直接退出）。
+    # 这里与 Web 面板（webui/internal/config/selection.go 的 LoadState）保持同一套解析语义。
+    local k v line
+    while IFS= read -r line; do
+      [[ "$line" == \#* || -z "$line" ]] && continue
+      k="${line%%=*}"
+      v="${line#*=}"
+      case "$k" in
+        DESKTOP)       DESKTOP="$v" ;;
+        BOOT)          BOOT="$v" ;;
+        LOCALE)        LOCALE="$v" ;;
+        INPUT)         INPUT="$v" ;;
+        MIRROR)        MIRROR="$v" ;;
+        USERSHELL)     USERSHELL="$v" ;;
+        SYSTEM_MODULES) SYSTEM_MODULES="$v" ;;
+        ADVANCED)      ADVANCED="$v" ;;
+      esac
+    done < "$st"
     ok "已恢复上次的模块选择"
   fi
 }
@@ -119,7 +137,7 @@ run_menu() {
   USERSHELL="$PICKED"
 
   pick_multi "系统模块（默认开前5个）" "auto-update clean nix-command zram fonts" \
-    auto-update clean nix-command zram fonts nopwdtodesktop vm-debug
+    auto-update clean nix-command zram fonts nopwdtodesktop vm-debug webui
   SYSTEM_MODULES="$PICKED_MULTI"
 
   pick_multi "进阶模块（默认全关）" "" secrets impermanence backup security
