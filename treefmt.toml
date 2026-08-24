@@ -1,0 +1,15 @@
+# treefmt 配置（nix fmt）
+# 需要格式化时在仓库根目录运行：nix fmt
+
+[global]
+excludes = [
+  ".git/**",
+  "flake.lock",
+  "themes/**",
+  "LICENSE",
+  "*.md",
+]
+
+[formatter.nix]
+command = "nixfmt"
+includes = [ "*.nix" ]

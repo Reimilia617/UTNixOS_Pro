@@ -1,0 +1,36 @@
+name: UTNixOS CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # 快速检查：评测 + 代码风格
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: nix flake check
+        run: nix flake check
+      - name: 静态检查 (statix / deadnix)
+        run: |
+          nix develop --command bash -c "statix check || true"
+          nix develop --command bash -c "deadnix . || true"
+      - name: 格式化检查 (nix fmt --fail-on-change)
+        run: nix fmt -- --fail-on-change || echo "请运行 nix fmt 格式化代码"
+
+  # 重量级：在 KVM 虚拟机里真实启动系统
+  boot-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: 启动冒烟测试
+        run: |
+          nix build .#checks.x86_64-linux.boot \
+            --option substituters "https://mirrors.ustc.edu.cn/nix-channels/store https://cache.nixos.org/"
