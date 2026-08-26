@@ -125,7 +125,7 @@ echo "$MODS" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['si
   && ok "modules 结构与当前配置一致" || bad "modules 结构异常"
 
 # 5. 模块应用（切换到 kde + 开启 webui）
-SEL='{"desktop":"kde","boot":"grub-theme","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}'
+SEL='{"selection":{"desktop":"kde","boot":"grub-theme","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'
 RES=$(api -X POST http://127.0.0.1:8090/api/modules/apply -H 'Content-Type: application/json' -d "$SEL")
 echo "$RES" | grep -q '"changed"' && ok "modules/apply 返回修改摘要" || bad "modules/apply: $RES"
 grep -q '^[[:space:]]*\./modules/desktop/kde\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 已切到 kde" || bad "configuration.nix 未切换"

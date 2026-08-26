@@ -20,6 +20,18 @@ set -u
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  [PASS] $*"; }
 bad()  { FAIL=$((FAIL+1)); echo "  [FAIL] $*"; }
+
+# 容器内 git 常因目录所有权被安全策略拦截，统一放行本测试用目录
+git config --global --add safe.directory '*' 2>/dev/null || true
+
+# 稳定驱动交互式脚本：脚本通过 read 从 /dev/tty（PTY）读取输入。
+# 一次灌入整串会被 PTY 行缓冲吞掉末尾输入（尤其确认 y），所以把每一行
+# 作为独立参数、逐行 printf + 延时送出，确保子进程逐个 read 到。
+pty_in() { # pty_in <命令> <输出文件> <line1> [line2...]  （空串参数=空行）
+  local cmd="$1" out="$2"; shift 2
+  { for ln in "$@"; do printf '%s\n' "$ln"; sleep 0.35; done; sleep 0.6; } \
+    | script -qec "$cmd" /dev/null >"$out" 2>&1
+}
 check() { # check <描述> <grep 模式> <文件>
   if grep -qE "$2" "$3"; then ok "$1"; else bad "$1（$3 中未找到 $2）"; fi
 }
@@ -81,8 +93,8 @@ chmod +x /run/current-system/bin/switch-to-configuration
 
 echo ""
 echo "========== 测试 1：install.sh install（默认选项） =========="
-INPUT=$(printf '\n\n\n\n\n\n\n\n\ny\n')
-echo "$INPUT" | script -qec "bash /repo/install.sh install" /dev/null >/tmp/t1.out 2>&1
+INPUT=()   # 全部默认 + 确认安装
+pty_in "bash /repo/install.sh install" /tmp/t1.out '' '' '' '' '' '' '' '' 'y'
 echo "--- 输出片段 ---"; grep -E "安装完成|✓|✗|错误" /tmp/t1.out | head -8
 CFG=/mnt/etc/nixos/configuration.nix
 [ -f "$CFG" ] && ok "configuration.nix 已部署到 /mnt/etc/nixos" || bad "configuration.nix 未部署"
@@ -110,8 +122,8 @@ grep -q 'nixos-install --flake /mnt/etc/nixos#reimilia --option substituters' /t
 echo ""
 echo "========== 测试 2：install.sh install（自定义选项） =========="
 # gnome(2) systemd-boot(3) zh_CN(2) fcitx5(2) tuna(2) fish(3) webui(8) secrets(1)
-INPUT=$(printf '2\n3\n2\n2\n2\n3\n8\n\n1\n\ny\n')
-echo "$INPUT" | script -qec "bash /repo/install.sh install" /dev/null >/tmp/t2.out 2>&1
+INPUT=()   # gnome(2) systemd-boot(3) zh_CN(2) fcitx5(2) tuna(2) fish(3) webui(8) secrets(1)
+pty_in "bash /repo/install.sh install" /tmp/t2.out '2' '3' '2' '2' '2' '3' '8' '' '1' '' 'y'
 grep -E "安装完成|✓|✗" /tmp/t2.out | head -6
 check "自定义桌面 gnome 启用"     '^[[:space:]]*\./modules/desktop/gnome\.nix' "$CFG"
 check_not "xfce 被注释"           '^[[:space:]]*[^#]*\./modules/desktop/xfce\.nix' "$CFG"
@@ -149,8 +161,8 @@ git -C /etc/nixos push -q origin main
 echo '# MACHINE hardware v2' > /etc/nixos/hardware-configuration.nix
 printf '# machine-local packages v2\nhtop\nripgrep\n' > /etc/nixos/host/packages.nix
 # kde(3) 其余默认
-INPUT=$(printf '3\n\n\n\n\n\n\n\n\ny\n')
-echo "$INPUT" | script -qec "bash /etc/nixos/install.sh menu" /dev/null >/tmp/t3.out 2>&1
+INPUT=()   # kde(3) 其余默认
+pty_in "bash /etc/nixos/install.sh menu" /tmp/t3.out '3' '' '' '' '' '' '' '' 'y'
 grep -E "模块切换完成|✓|✗" /tmp/t3.out | head -5
 check "menu 切换到 kde"          '^[[:space:]]*\./modules/desktop/kde\.nix' /etc/nixos/configuration.nix
 check_not "menu 后 xfce 关闭"    '^[[:space:]]*[^#]*\./modules/desktop/xfce\.nix' /etc/nixos/configuration.nix
@@ -163,8 +175,8 @@ echo "========== 测试 4：install.sh update（同步代码+保留机器文件+
 # 更新前记录机器文件内容（v2 版本）
 BEFORE_HW=$(cat /etc/nixos/hardware-configuration.nix)
 BEFORE_PKG=$(cat /etc/nixos/host/packages.nix)
-INPUT=$(printf 'n\n')   # 不重新选择模块
-echo "$INPUT" | script -qec "bash /etc/nixos/install.sh update" /dev/null >/tmp/t4.out 2>&1
+INPUT=()   # 不重新选择模块
+pty_in "bash /etc/nixos/install.sh update" /tmp/t4.out 'n'
 grep -E "系统更新完成|✓|✗" /tmp/t4.out | head -5
 [ "$(cat /etc/nixos/hardware-configuration.nix)" = "$BEFORE_HW" ] && ok "hardware-configuration.nix 被保留" || bad "hardware-configuration.nix 丢失/被覆盖"
 [ "$(cat /etc/nixos/host/packages.nix)" = "$BEFORE_PKG" ] && ok "host/packages.nix 被保留" || bad "host/packages.nix 丢失/被覆盖"
@@ -177,14 +189,14 @@ echo ""
 echo "========== 测试 5：install.sh rollback（回滚到指定 generation） =========="
 mkdir -p /tmp/fakeprof
 export UTNIXOS_PRO_TEST_PROF=/tmp/fakeprof
-INPUT=$(printf '22\n')
-echo "$INPUT" | script -qec "bash /etc/nixos/install.sh rollback" /dev/null >/tmp/t5.out 2>&1
+INPUT=()   # 回滚到 generation 22
+pty_in "bash /etc/nixos/install.sh rollback" /tmp/t5.out '22'
 grep -E "回滚完成|✓|✗" /tmp/t5.out | head -3
 grep -q 'nix-env --switch-generation 22 -p /tmp/fakeprof' /tmp/stub.log && ok "切换到 generation 22" || bad "未调用 switch-generation 22"
 grep -q 'switch-to-configuration switch' /tmp/stub.log && ok "激活 generation" || bad "未调用 switch-to-configuration"
 # 空输入分支：回滚到上一个版本
-INPUT=$(printf '\n')
-echo "$INPUT" | script -qec "bash /etc/nixos/install.sh rollback" /dev/null >/tmp/t5b.out 2>&1
+INPUT=()   # 回车=回滚到上一个版本
+pty_in "bash /etc/nixos/install.sh rollback" /tmp/t5b.out ''
 grep -q 'nixos-rebuild switch --rollback' /tmp/stub.log && ok "默认回滚分支调用 nixos-rebuild --rollback" || bad "默认回滚分支未触发"
 
 echo ""
@@ -195,9 +207,9 @@ UTNIXOS_PRO_GIT_URL=file:///repo bash /tmp/alone/install.sh help >/tmp/t6.out 2>
 grep -q "正在从 GitHub 获取 UTNixOS_Pro 脚本" /tmp/t6.out && ok "引导模式从 GIT_URL 拉取代码" || bad "引导模式未拉取"
 grep -q "curl 方式安装" /tmp/t6.out && ok "help 路由正常" || bad "help 输出异常"
 # --rollback 走引导模式完整回滚（保险方案路径）
-INPUT=$(printf '22\n')
-echo "$INPUT" | UTNIXOS_PRO_GIT_URL=file:///repo UTNIXOS_PRO_TEST_PROF=/tmp/fakeprof \
-  script -qec "bash /tmp/alone/install.sh --rollback" /dev/null >/tmp/t6b.out 2>&1
+INPUT=()   # 回滚到 generation 22
+export UTNIXOS_PRO_GIT_URL=file:///repo UTNIXOS_PRO_TEST_PROF=/tmp/fakeprof
+pty_in "bash /tmp/alone/install.sh --rollback" /tmp/t6b.out '22'
 grep -q '回滚完成' /tmp/t6b.out && ok "curl|bash --rollback 保险回滚可用" || bad "引导回滚失败: $(tail -3 /tmp/t6b.out)"
 
 echo ""
