@@ -1,4 +1,4 @@
-# UTNixOS Overlays 入口
+# UTNixOS_Pro Overlays 入口
 #
 # 用途：自定义/覆盖 nixpkgs 包，或添加自建包。
 # 返回一个 overlay 列表（可以是空列表 []）。
@@ -23,8 +23,8 @@
 #   ]
 
 [
-  # UTNixOS Web 管理面板（自建包，见 webui/ 目录，由 modules/system/webui.nix 使用）
+  # UTNixOS_Pro Web 管理面板（自建包，见 webui/ 目录，由 modules/system/webui.nix 使用）
   (final: prev: {
-    utnixos-webui = final.callPackage ../webui { };
+    "utnixos-pro-webui" = final.callPackage ../webui { };
   })
 ]

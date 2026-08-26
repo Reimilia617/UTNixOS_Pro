@@ -1,6 +1,6 @@
-# UTNixOS 模块选择逻辑（script/lib/selection.sh）
+# UTNixOS_Pro 模块选择逻辑（script/lib/selection.sh）
 # 根据菜单选择修改 configuration.nix / home-manager.nix 的 imports，
-# 并把选择保存到 .utnixos-selection 以便下次恢复。
+# 并把选择保存到 .utnixos-pro-selection 以便下次恢复。
 
 # 依赖：env.sh（STATE_FILE 等）、util.sh（info/ok/sed 辅助）
 
@@ -73,7 +73,7 @@ apply_selection() {
 save_state() {
   local st="$TARGET_DIR/$STATE_FILE"
   cat > "$st" <<EOF
-# UTNixOS 模块选择状态（由 install.sh 生成，可手动修改后重新运行 update）
+# UTNixOS_Pro 模块选择状态（由 install.sh 生成，可手动修改后重新运行 update）
 DESKTOP=$DESKTOP
 BOOT=$BOOT
 LOCALE=$LOCALE

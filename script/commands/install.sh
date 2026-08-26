@@ -1,9 +1,9 @@
-# UTNixOS 命令：全新安装（script/commands/install.sh）
+# UTNixOS_Pro 命令：全新安装（script/commands/install.sh）
 # 在 NixOS live 环境运行：已挂载 /mnt，自动生成硬件配置、部署文件、执行 nixos-install。
 
 cmd_install() {
   banner
-  [[ $EUID -eq 0 || -n "${UTNIXOS_TEST:-}" ]] || die "安装模式需要 root 权限（NixOS live 环境默认就是 root）"
+  [[ $EUID -eq 0 || -n "${UTNIXOS_PRO_TEST:-}" ]] || die "安装模式需要 root 权限（NixOS live 环境默认就是 root）"
 
   TARGET_DIR="$MOUNT_ROOT/etc/nixos"
 
@@ -30,7 +30,7 @@ cmd_install() {
   [[ "$ans" =~ ^[Yy]$ ]] || die "已取消"
 
   # 获取配置源码：优先复用引导时拉取的仓库（SCRIPT_SRC，带 .git），否则自己拉取
-  info "准备 UTNixOS 配置..."
+  info "准备 UTNixOS_Pro 配置..."
   local src=""
   if [[ -d "${SCRIPT_SRC:-}/.git" ]]; then
     src="$SCRIPT_SRC"

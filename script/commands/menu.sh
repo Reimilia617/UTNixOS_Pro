@@ -1,4 +1,4 @@
-# UTnixOS 命令：选择/更换模块（script/commands/menu.sh）
+# UTNixOS_Pro 命令：选择/更换模块（script/commands/menu.sh）
 # 只交互选择模块并重建，不拉取代码。
 
 cmd_menu() {

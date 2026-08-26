@@ -1,10 +1,10 @@
-# UTnixOS 命令：管理面板（script/commands/dashboard.sh）
+# UTNixOS_Pro 命令：管理面板（script/commands/dashboard.sh）
 # ut 命令 / install.sh 无参数时的默认入口。
 # 提供：重建系统 / 清理垃圾 / 更换模块 / 更新配置 / 更新Flake / 回滚。
 
 cmd_dashboard() {
   banner
-  [[ $EUID -eq 0 || -n "${UTNIXOS_TEST:-}" ]] || die "管理面板需要 root，请用：sudo install.sh 或直接运行 ut"
+  [[ $EUID -eq 0 || -n "${UTNIXOS_PRO_TEST:-}" ]] || die "管理面板需要 root，请用：sudo install.sh 或直接运行 ut"
 
   TARGET_DIR="$INSTALL_DIR"
   if [[ ! -f "$TARGET_DIR/flake.nix" ]]; then
@@ -14,7 +14,7 @@ cmd_dashboard() {
 
   while :; do
     say ""
-    say "${C_BOLD}========== UTNixOS 管理菜单 ==========${C_RESET}"
+    say "${C_BOLD}========== UTNixOS_Pro 管理菜单 ==========${C_RESET}"
     say "  1) 重建系统（nixos-rebuild switch）"
     say "  2) 清理构建垃圾（nix-collect-garbage -d）"
     say "  3) 选择/更换模块（桌面/引导/Shell/输入法等）"

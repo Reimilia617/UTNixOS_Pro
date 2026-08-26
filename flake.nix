@@ -1,5 +1,5 @@
 {
-  description = "UTNixOS - Reimilia NixOS Configuration";
+  description = "UTNixOS_Pro - Reimilia NixOS Configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -63,7 +63,7 @@
 
     # 代码格式化：nix fmt
     # （treefmt 本身不打包格式化器，这里把 nixfmt 加进 PATH 再调用）
-    formatter.${system} = pkgs.writeShellScriptBin "utnixos-fmt" ''
+    formatter.${system} = pkgs.writeShellScriptBin "utnixos-pro-fmt" ''
       export PATH="${nixpkgs.lib.makeBinPath [ pkgs.treefmt pkgs.nixfmt ]}:$PATH"
       exec ${pkgs.treefmt}/bin/treefmt "$@"
     '';

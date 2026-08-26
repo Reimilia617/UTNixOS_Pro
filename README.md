@@ -1,13 +1,13 @@
-# UTNixOS - Reimilia NixOS Configuration
+# UTNixOS_Pro - Reimilia NixOS Configuration
 
 ```
-##     ## ######## ##    ## #### ##     ##  #######   ######  
-##     ##    ##    ###   ##  ##   ##   ##  ##     ## ##    ## 
-##     ##    ##    ####  ##  ##    ## ##   ##     ## ##       
-##     ##    ##    ## ## ##  ##     ###    ##     ##  ######  
-##     ##    ##    ##  ####  ##    ## ##   ##     ##       ## 
-##     ##    ##    ##   ###  ##   ##   ##  ##     ## ##    ## 
- #######     ##    ##    ## #### ##     ##  #######   ######  
+##     ## ######## ##    ## #### ##     ##  #######   ######          ######## ########  ######
+##     ##    ##    ###   ##  ##   ##   ##  ##     ## ##    ##          ##    ## ##    ## ##    ##
+##     ##    ##    ####  ##  ##    ## ##   ##     ## ##          ##    ## ##    ## ##    ##
+##     ##    ##    ## ## ##  ##     ###    ##     ##  ######          ######## ######## ##    ##
+##     ##    ##    ##  ####  ##    ## ##   ##     ##       ##          ##       ##   ##  ##    ##
+##     ##    ##    ##   ###  ##   ##   ##  ##     ## ##    ##          ##       ##  ##   ##    ##
+ #######     ##    ##    ## #### ##     ##  #######   ###### ######## ##       ##   ##   ######
 ```
 
 一个把 **NixOS** 从「装到哪算哪」变成「想要什么就在菜单里选一下」的个人配置。模块化、可回滚、多主机，外加一点点东方厨的浪漫。
@@ -72,7 +72,7 @@
    ```
 3. 一条命令弹出交互式菜单：
    ```
-   curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS/main/install.sh | bash
+   curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash
    ```
    菜单里自由选择：桌面环境/引导加载器/语言/输入法/镜像源/Shell/系统模块/进阶模块，
    脚本会自动修改 configuration.nix（和 home-manager.nix）、生成硬件配置、执行 `nixos-install` 部署系统。
@@ -110,7 +110,7 @@ ut rollback        # 系统回滚
 - 常规回滚：`ut` → 选 6，或 `sudo bash install.sh rollback`
 - **本地脚本/配置坏了也能回滚**：直接 curl 最新脚本加 `--rollback` 参数：
   ```
-  curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS/main/install.sh | sudo bash -s -- --rollback
+  curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | sudo bash -s -- --rollback
   ```
   回滚不依赖 /etc/nixos 里的配置，只操作系统 generations。
 
@@ -147,7 +147,7 @@ nixos-install --option substituters "https://mirrors.ustc.edu.cn/nix-channels/st
 # Flake 使用
 
 - 手动更新系统：`sudo nixos-rebuild switch --flake /etc/nixos#reimilia`（已内置为 sys-update 别名）
-- 或者：`nixos-rebuild switch --flake github:Reimilia617/UTNixOS#reimilia`
+- 或者：`nixos-rebuild switch --flake github:Reimilia617/UTNixOS_Pro#reimilia`
 - 多主机：新增机器时在 flake.nix 的 hosts 列表里加一行，并把对应 hardware-configuration.nix 放到机器上
 - 格式化代码：`nix fmt`（检查是否有未格式化文件：`nix fmt -- --fail-on-change`）
 - 开发环境（treefmt/nixfmt/statix/deadnix）：`nix develop`
@@ -226,7 +226,7 @@ nixos-install --option substituters "https://mirrors.ustc.edu.cn/nix-channels/st
 **不想下载 mp4（安装更快）**：curl 时加 `--no-apple` 参数
 
 ```
-curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS/main/install.sh | bash -s -- --no-apple
+curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash -s -- --no-apple
 ```
 
 用 `--no-apple` 安装的系统没有 badapple.mp4，彩蛋会提示而不是报错；
@@ -236,7 +236,7 @@ curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS/main/install.sh | 
 
 # Web 管理面板（可选功能）
 
-UTNixOS 自带一个 **Web 管理面板**：浏览器里完成原本 `ut` 终端菜单能做的所有事。
+UTNixOS_Pro 自带一个 **Web 管理面板**：浏览器里完成原本 `ut` 终端菜单能做的所有事。
 
 ## 启用
 
@@ -259,25 +259,25 @@ http://127.0.0.1:8090
 | --- | --- |
 | 重建系统 | `nixos-rebuild switch`，实时输出控制台 |
 | 更新系统 | 同步 GitHub 代码 + 重建（等同 `ut update`） / 仅更新 Flake + 重建 |
-| 模块启停 | 读写 `configuration.nix`（与 `ut menu` 同一套选择逻辑，共用 `.utnixos-selection`） |
+| 模块启停 | 读写 `configuration.nix`（与 `ut menu` 同一套选择逻辑，共用 `.utnixos-pro-selection`） |
 | 软件包 | 搜索 nixpkgs、**声明式安装**（写入 `host/packages.nix`，重建后保留）、**临时安装**（`nix profile`，重建后失效） |
 | 时间点回滚 | 列出系统 generations（带时间），选择回滚 |
 | 系统日志 | `journalctl` 查看 + 实时跟踪（按服务过滤） |
 | 清理垃圾 | `nix-collect-garbage -d` |
-| 审计 | 所有操作记录在 `/var/lib/utnixos-webui/audit.log` |
+| 审计 | 所有操作记录在 `/var/lib/utnixos-pro-webui/audit.log` |
 
 ## 安全说明（重要）
 
 - 面板以 root 运行（需要执行 nixos-rebuild），**默认只监听 `127.0.0.1`，防火墙零开放**，不会暴露到公网。
 - 想在内网其他设备访问时，两种方式：
   - **推荐**：保持 127.0.0.1，用 SSH 隧道 `ssh -L 8090:127.0.0.1:8090 user@主机`
-  - 或修改模块选项 `services.utnixos-webui = { address = "0.0.0.0"; allowLan = true; }` 开放防火墙端口（此时密码明文走网络，请仅在可信内网使用，或自备 HTTPS 反代）。
+  - 或修改模块选项 `services.utnixos-pro-webui = { address = "0.0.0.0"; allowLan = true; }` 开放防火墙端口（此时密码明文走网络，请仅在可信内网使用，或自备 HTTPS 反代）。
 - 登录有频率限制（1 分钟 5 次失败封禁）；所有输入（包名/模块/日志 unit）都有白名单校验，命令以参数数组执行，无 shell 注入面。
 
 ## 自定义
 
 ```nix
-services.utnixos-webui = {
+services.utnixos-pro-webui = {
   enable = true;
   port = 8090;                # 端口
   address = "127.0.0.1";      # 监听地址（默认仅本机）
@@ -378,7 +378,7 @@ script/
 
 ## Ver1.2
 
-- 1. 添加了 flake，使用 `nixos-install/nixos-rebuild switch --flake github:Reimilia617/UTNixOS#reimilia` 命令通过 flake 安装/更新
+- 1. 添加了 flake，使用 `nixos-install/nixos-rebuild switch --flake github:Reimilia617/UTNixOS_Pro#reimilia` 命令通过 flake 安装/更新
 - 提示：如果你想自定义使用别的模块还是请你 git 到本地修改后使用 (*/ω＼*)
 
 ## Ver1.3
@@ -427,7 +427,7 @@ script/
 - 8. Hyprland 模块补上 SDDM 登录管理器（Wayland greeter）
 - 9. 新增 VM 调试模块（见上方说明）
 
-## Ver2.2（项目更名 UTNixOS）
+## Ver2.2（项目更名 UTNixOS_Pro）
 
 - 1. fastfetch 换成 hyfetch（自定义配色的 neofetch 系）
 - 2. 新增交互式安装/更新脚本 install.sh（ASCII 字符画 + 菜单选模块 + 自动改配置 + 一键安装/同步/换模块）
@@ -469,7 +469,7 @@ script/
 - 2. --no-apple 参数：跳过 badapple.mp4 的下载（稀疏检出）和部署，加快安装
 - 3. media/ 目录：badapple.mp4 随配置一起部署到 /etc/nixos/media/
 - 4. 最终 bug 检查：全新安装流程 / 从别人硬件配置构建 / 回滚逻辑 全部实测通过
-- 5. 支持 UTNIXOS_GIT_URL / UTNIXOS_TARBALL_URL / UTNIXOS_RAW_URL 环境变量换源（fork 友好）
+- 5. 支持 UTNIXOS_PRO_GIT_URL / UTNIXOS_PRO_TARBALL_URL / UTNIXOS_PRO_RAW_URL 环境变量换源（fork 友好）
 
 ---
 

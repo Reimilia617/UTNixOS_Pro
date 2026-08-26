@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  UTNixOS - 管理脚本引导器（唯一入口）
+#  UTNixOS_Pro - 管理脚本引导器（唯一入口）
 #
 #  设计：真正的逻辑都在 script/ 目录的模块里（跟 NixOS 的 modules/ 一个思路）：
 #    script/lib/*.sh        基础设施（env 配置 / util 输出菜单 / selection 模块选择）
@@ -20,8 +20,8 @@
 set -euo pipefail
 
 # ---- 引导所需的最小配置（完整配置在 script/lib/env.sh）----
-GIT_URL="${UTNIXOS_GIT_URL:-https://github.com/Reimilia617/UTNixOS.git}"
-TARBALL_URL="${UTNIXOS_TARBALL_URL:-https://github.com/Reimilia617/UTNixOS/archive/refs/heads/main.tar.gz}"
+GIT_URL="${UTNIXOS_PRO_GIT_URL:-https://github.com/Reimilia617/UTNixOS_Pro.git}"
+TARBALL_URL="${UTNIXOS_PRO_TARBALL_URL:-https://github.com/Reimilia617/UTNixOS_Pro/archive/refs/heads/main.tar.gz}"
 
 SCRIPT_SRC=""
 
@@ -48,7 +48,7 @@ if [[ -z "$SCRIPT_SRC" ]]; then
 
   BOOT_TMP="$(mktemp -d)"
   trap 'rm -rf "$BOOT_TMP"' EXIT
-  echo "[*] 正在从 GitHub 获取 UTNixOS 脚本..."
+  echo "[*] 正在从 GitHub 获取 UTNixOS_Pro 脚本..."
   if command -v git >/dev/null 2>&1; then
     # 注意：clone 失败不能触发 set -e 退出，必须留给下面的 curl|tar 回退分支。
     if [[ "$no_apple" == "1" ]]; then
@@ -69,7 +69,7 @@ if [[ -z "$SCRIPT_SRC" ]]; then
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]] && command -v curl >/dev/null 2>&1; then
     curl -fsSL "$TARBALL_URL" | tar -xz -C "$BOOT_TMP" --strip-components=1 \
-      || { echo "[✗] 获取 UTNixOS 代码失败，请检查网络" >&2; exit 1; }
+      || { echo "[✗] 获取 UTNixOS_Pro 代码失败，请检查网络" >&2; exit 1; }
     [[ "$no_apple" == "1" ]] && rm -f "$BOOT_TMP/media/badapple.mp4"
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]]; then

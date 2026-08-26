@@ -1,4 +1,4 @@
-# UTnixOS 命令：更新配置（script/commands/update.sh）
+# UTNixOS_Pro 命令：更新配置（script/commands/update.sh）
 # 从 GitHub 同步最新代码（保留本机 hardware-configuration.nix 和选择状态），
 # 恢复上次的模块选择（或重新选择），然后 nixos-rebuild switch。
 

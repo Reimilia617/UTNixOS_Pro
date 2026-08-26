@@ -1,4 +1,4 @@
-# UTnixOS 脚本主程序（script/main.sh）
+# UTNixOS_Pro 脚本主程序（script/main.sh）
 #
 # 模块化设计（与 NixOS 的 modules/ 同理）：
 #   - script/lib/*.sh          基础设施：env(配置) / util(输出·菜单·sed) / selection(模块选择)
@@ -72,7 +72,7 @@ main() {
   esac
 }
 
-# 测试钩子：设置 UTNIXOS_TEST=1 时不会自动执行 main（供测试脚本 source 本文件用）
-if [[ -z "${UTNIXOS_TEST:-}" ]]; then
+# 测试钩子：设置 UTNIXOS_PRO_TEST=1 时不会自动执行 main（供测试脚本 source 本文件用）
+if [[ -z "${UTNIXOS_PRO_TEST:-}" ]]; then
   main "$@"
 fi

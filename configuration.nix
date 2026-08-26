@@ -12,7 +12,7 @@
     ./modules/system/nix-command.nix     # Advanced package manager
     ./modules/system/zram.nix     # Memory ZSTD
     ./modules/system/fonts.nix     # Fonts(默认启用)
-    ./modules/system/ut.nix     # ut命令(UTNixOS管理接口)
+    ./modules/system/ut.nix     # ut命令(UTNixOS_Pro管理接口)
     #./modules/system/webui.nix     # Web管理面板(默认关闭,见文件内说明)
     #./modules/system/nopwdtodesktop.nix     # Auto Login
     #./modules/system/vm-debug.nix     # VM调试(无头启动,默认关闭,见文件内说明)

@@ -1,4 +1,4 @@
-# UTNixOS 启动冒烟测试
+# UTNixOS_Pro 启动冒烟测试
 #
 # 作用：在 KVM 虚拟机中真实启动默认配置，验证系统能：
 #   1. 正常引导到多用户目标
@@ -14,7 +14,7 @@
 { home-manager }:
 
 {
-  name = "utnixos-boot";
+  name = "utnixos-pro-boot";
 
   # 关键：测试框架默认把 nixpkgs.config 设为只读（共享宿主 pkgs），
   # 会与 applications.nix 里的 nixpkgs.config.allowUnfree = true 冲突。
@@ -72,6 +72,6 @@
     #    只验证主题/字体等目录确实在系统里）
     machine.succeed("ls /run/current-system/sw/bin/zsh")
 
-    print("UTNixOS boot test: ALL PASSED")
+    print("UTNixOS_Pro boot test: ALL PASSED")
   '';
 }

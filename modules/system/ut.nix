@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 {
-  # ut 命令：UTNixOS 管理总接口
+  # ut 命令：UTNixOS_Pro 管理总接口
   # 用法：ut          → 打开管理面板（重建/清理/选模块/更新/回滚）
   #       ut update   → 更新配置
   #       ut menu     → 更换模块

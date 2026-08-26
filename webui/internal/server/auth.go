@@ -184,7 +184,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	sess := s.sessions.Create(req.Username)
 	http.SetCookie(w, &http.Cookie{
-		Name:     "utnixos_session",
+		Name:     "utnixos_pro_session",
 		Value:    sess.Token,
 		Path:     "/",
 		HttpOnly: true,

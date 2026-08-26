@@ -1,11 +1,11 @@
-# UTnixOS 命令：系统回滚（script/commands/rollback.sh）
+# UTNixOS_Pro 命令：系统回滚（script/commands/rollback.sh）
 # 纯操作系统 profile 的 generations，不依赖 /etc/nixos 配置——
 # 所以即使本地配置/脚本坏了，也可以用 curl 拉最新脚本加 --rollback 回滚。
 
 cmd_rollback() {
   banner
-  # 允许测试时用 UTNIXOS_TEST_PROF 覆盖 profile 路径
-  local PROF="${UTNIXOS_TEST_PROF:-/nix/var/nix/profiles/system}"
+  # 允许测试时用 UTNIXOS_PRO_TEST_PROF 覆盖 profile 路径
+  local PROF="${UTNIXOS_PRO_TEST_PROF:-/nix/var/nix/profiles/system}"
   [[ -e "$PROF" ]] || die "找不到系统 profile：$PROF"
 
   say ""

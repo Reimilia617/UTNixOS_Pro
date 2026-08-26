@@ -1,4 +1,4 @@
-name: UTNixOS CI
+name: UTNixOS_Pro CI
 
 on:
   push:

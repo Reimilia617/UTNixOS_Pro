@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"utnixos.dev/webui/web"
+	"utnixos-pro.dev/webui/web"
 )
 
 // Options 是 Web 服务配置。
@@ -43,10 +43,10 @@ func New(opts Options) (*Server, error) {
 		opts.ConfigDir = "/etc/nixos"
 	}
 	if opts.StateDir == "" {
-		opts.StateDir = "/var/lib/utnixos-webui"
+		opts.StateDir = "/var/lib/utnixos-pro-webui"
 	}
 	if opts.PAMService == "" {
-		opts.PAMService = "utnixos-webui"
+		opts.PAMService = "utnixos-pro-webui"
 	}
 	if opts.SessionTTL <= 0 {
 		opts.SessionTTL = 8 * time.Hour
@@ -120,7 +120,7 @@ func sessionFrom(r *http.Request) *Session {
 
 func (s *Server) withSession(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie("utnixos_session")
+		c, err := r.Cookie("utnixos_pro_session")
 		if err != nil {
 			httpError(w, http.StatusUnauthorized, "未登录")
 			return
@@ -173,7 +173,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		s.audit(sess.User, "logout", "")
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: "utnixos_session", Value: "", Path: "/",
+		Name: "utnixos_pro_session", Value: "", Path: "/",
 		HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1,
 	})
 	writeJSON(w, map[string]any{"ok": true})

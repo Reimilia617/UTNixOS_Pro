@@ -1,10 +1,10 @@
 { lib, buildGoModule }:
 
-# UTNixOS Web 管理面板
+# UTNixOS_Pro Web 管理面板
 # 纯 Go + 标准库实现（零第三方依赖），PAM 认证通过外部 pamtester 完成，
 # 因此可静态编译，buildGoModule 无需 vendor。
 buildGoModule {
-  pname = "utnixos-webui";
+  pname = "utnixos-pro-webui";
   version = "0.1.0";
 
   src = ./.;
@@ -23,8 +23,8 @@ buildGoModule {
   ldflags = [ "-s" "-w" ];
 
   meta = with lib; {
-    description = "UTNixOS Web 管理面板（系统用户名/密码认证，仅本机访问）";
-    homepage = "https://github.com/Reimilia617/UTNixOS";
+    description = "UTNixOS_Pro Web 管理面板（系统用户名/密码认证，仅本机访问）";
+    homepage = "https://github.com/Reimilia617/UTNixOS_Pro";
     license = licenses.mit;
     platforms = platforms.linux;
     maintainers = [ ];

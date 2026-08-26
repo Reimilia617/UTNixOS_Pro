@@ -160,7 +160,7 @@ func (e *Editor) itemsFor(names []string) []ModuleItem {
 	return out
 }
 
-// ---------- 选择状态（.utnixos-selection，与 TUI 共用） ----------
+// ---------- 选择状态（.utnixos-pro-selection，与 TUI 共用） ----------
 
 // State 是一份完整的模块选择。
 type State struct {
@@ -187,10 +187,10 @@ func DefaultState() State {
 	}
 }
 
-// LoadState 从 .utnixos-selection 读取（文件不存在时返回默认值）。
+// LoadState 从 .utnixos-pro-selection 读取（文件不存在时返回默认值）。
 func (e *Editor) LoadState() State {
 	st := DefaultState()
-	data, err := os.ReadFile(e.dir + "/.utnixos-selection")
+	data, err := os.ReadFile(e.dir + "/.utnixos-pro-selection")
 	if err != nil {
 		return st
 	}
@@ -239,9 +239,9 @@ func splitFields(s string) []string {
 	return out
 }
 
-// SaveState 把选择写入 .utnixos-selection（与 TUI 同格式，可互相读取）。
+// SaveState 把选择写入 .utnixos-pro-selection（与 TUI 同格式，可互相读取）。
 func (e *Editor) SaveState(st State) error {
-	content := fmt.Sprintf(`# UTNixOS 模块选择状态（由 Web 管理面板 / install.sh 生成，可手动修改后重新运行 update）
+	content := fmt.Sprintf(`# UTNixOS_Pro 模块选择状态（由 Web 管理面板 / install.sh 生成，可手动修改后重新运行 update）
 DESKTOP=%s
 BOOT=%s
 LOCALE=%s
@@ -253,7 +253,7 @@ ADVANCED=%s
 `,
 		st.Desktop, st.Boot, st.Locale, st.Input, st.Mirror, st.UserShell,
 		strings.Join(st.SystemModules, " "), strings.Join(st.Advanced, " "))
-	return os.WriteFile(e.dir+"/.utnixos-selection", []byte(content), 0o644)
+	return os.WriteFile(e.dir+"/.utnixos-pro-selection", []byte(content), 0o644)
 }
 
 // ---------- 应用选择（等价 selection.sh 的 apply_selection） ----------
@@ -367,7 +367,7 @@ func (e *Editor) Apply(st State) ([]string, error) {
 	if err := e.SaveState(st); err != nil {
 		return nil, err
 	}
-	changed = append(changed, "状态文件已保存 (.utnixos-selection)")
+	changed = append(changed, "状态文件已保存 (.utnixos-pro-selection)")
 	return changed, nil
 }
 

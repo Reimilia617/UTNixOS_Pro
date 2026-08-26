@@ -1,7 +1,7 @@
 // Package config 负责读写 /etc/nixos 下的配置文件：
 //   - configuration.nix 的模块 imports（注释/取消注释，与 script/lib/selection.sh 的 sed 语义一致）
 //   - home-manager.nix 的 shell 导入同步
-//   - .utnixos-selection 状态文件（与 TUI ut 菜单共用同一份状态）
+//   - .utnixos-pro-selection 状态文件（与 TUI ut 菜单共用同一份状态）
 //   - host/packages.nix（Web 面板安装的软件包，机器本地文件）
 package config
 

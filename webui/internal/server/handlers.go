@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"utnixos.dev/webui/internal/config"
-	"utnixos.dev/webui/internal/nix"
+	"utnixos-pro.dev/webui/internal/config"
+	"utnixos-pro.dev/webui/internal/nix"
 )
 
 // cfgEditor 便捷获取配置编辑器。
@@ -411,13 +411,13 @@ func (s *Server) updateConfig(emit func(string)) error {
 	_ = gitCmd(dir, "update-index", "--skip-worktree",
 		"hardware-configuration.nix", "host/packages.nix").Run()
 
-	// 重新应用模块选择（.utnixos-selection 是 untracked，reset 不会动它）
+	// 重新应用模块选择（.utnixos-pro-selection 是 untracked，reset 不会动它）
 	e, err := config.NewEditor(dir)
 	if err != nil {
 		return err
 	}
 	st := e.LoadState()
-	emit("重新应用模块选择（.utnixos-selection）...")
+	emit("重新应用模块选择（.utnixos-pro-selection）...")
 	if _, err := e.Apply(st); err != nil {
 		return fmt.Errorf("应用模块选择失败: %v", err)
 	}

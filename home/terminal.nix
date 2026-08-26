@@ -11,7 +11,7 @@
 
   # 别名
   home.shellAliases = {
-    # ut：UTNixOS 管理总接口（打开管理面板：重建/清理/选模块/更新/回滚）
+    # ut：UTNixOS_Pro 管理总接口（打开管理面板：重建/清理/选模块/更新/回滚）
     ut = "sudo /etc/nixos/install.sh";
     # 使用绝对路径，避免依赖当前工作目录（与 system.autoUpgrade 的 flake 路径保持一致）
     sys-update = "sudo nixos-rebuild switch --flake /etc/nixos#reimilia";

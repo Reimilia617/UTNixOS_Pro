@@ -10,7 +10,7 @@
 
 {
   # services.restic.backups.home = {
-  #   repository = "sftp:user@nas:/backup/utnixos";
+  #   repository = "sftp:user@nas:/backup/utnixos-pro";
   #   passwordFile = "/etc/nixos/restic-password";
   #   paths = [
   #     "/home/reimilia/Documents"

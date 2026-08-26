@@ -1,4 +1,4 @@
-# UTnixOS 彩蛋模块（script/lib/easteregg.sh）
+# UTNixOS_Pro 彩蛋模块（script/lib/easteregg.sh）
 # 在模块选择界面输入 "touhou"（大小写不限）回车，播放 Bad Apple!! 影绘.mp4
 #
 # 文件位置：media/badapple.mp4（随仓库一起部署）

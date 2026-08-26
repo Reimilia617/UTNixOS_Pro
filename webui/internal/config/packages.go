@@ -11,7 +11,7 @@ import (
 const hostPackagesFile = "/host/packages.nix"
 
 // declarativePackagesTemplate 是 host/packages.nix 的初始内容。
-const declarativePackagesTemplate = `# UTNixOS - Web 管理面板安装的软件包（机器本地文件，自动维护）
+const declarativePackagesTemplate = `# UTNixOS_Pro - Web 管理面板安装的软件包（机器本地文件，自动维护）
 # 警告：此文件由 Web 管理面板写入，请勿手动编辑；手动编辑请保持本格式。
 # 更新配置（ut update）时会自动保留本文件。
 { pkgs, ... }:
@@ -59,7 +59,7 @@ func (e *Editor) writeDeclarativePackages(attrs []string) error {
 	}
 	sort.Strings(attrs)
 	var b strings.Builder
-	b.WriteString(`# UTNixOS - Web 管理面板安装的软件包（机器本地文件，自动维护）
+	b.WriteString(`# UTNixOS_Pro - Web 管理面板安装的软件包（机器本地文件，自动维护）
 # 警告：此文件由 Web 管理面板写入，请勿手动编辑；手动编辑请保持本格式。
 # 更新配置（ut update）时会自动保留本文件。
 { pkgs, ... }:

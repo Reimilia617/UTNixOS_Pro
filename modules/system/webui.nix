@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 
-# UTNixOS Web 管理面板（默认关闭，用 `ut menu` 或 Web 面板自身开启）
+# UTNixOS_Pro Web 管理面板（默认关闭，用 `ut menu` 或 Web 面板自身开启）
 #
 # 功能：系统用户名/密码（PAM）登录，浏览器访问
 #   http://127.0.0.1:8090   （默认仅本机，不会暴露到公网）
@@ -15,11 +15,11 @@
 #   - 面板以 root 运行（需要执行 nixos-rebuild），只允许 wheel 组用户登录（可改 allowedGroup）。
 
 let
-  cfg = config.services.utnixos-webui;
+  cfg = config.services."utnixos-pro-webui";
 in
 {
-  options.services.utnixos-webui = {
-    enable = lib.mkEnableOption "UTNixOS Web 管理面板";
+  options.services."utnixos-pro-webui" = {
+    enable = lib.mkEnableOption "UTNixOS_Pro Web 管理面板";
 
     port = lib.mkOption {
       type = lib.types.port;
@@ -51,20 +51,20 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = pkgs.utnixos-webui;
+      default = pkgs."utnixos-pro-webui";
       description = "Web 管理面板程序包（来自 overlays/default.nix 的自建包）。";
     };
   };
 
   config = lib.mkIf cfg.enable {
-    systemd.services.utnixos-webui = {
-      description = "UTNixOS Web 管理面板";
+    systemd.services."utnixos-pro-webui" = {
+      description = "UTNixOS_Pro Web 管理面板";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
       # 服务 PATH 里带上面板依赖的命令（nix/nixos-rebuild/git/pamtester/journalctl）
       path = [
-        pkgs.utnixos-webui
+        pkgs."utnixos-pro-webui"
         pkgs.nix
         pkgs.git
         pkgs.pamtester
@@ -77,16 +77,16 @@ in
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${cfg.package}/bin/webui --addr ${cfg.address}:${toString cfg.port} --config-dir /etc/nixos --state-dir /var/lib/utnixos-webui --pam-service utnixos-webui --allowed-group ${cfg.allowedGroup}";
+        ExecStart = "${cfg.package}/bin/webui --addr ${cfg.address}:${toString cfg.port} --config-dir /etc/nixos --state-dir /var/lib/utnixos-pro-webui --pam-service utnixos-pro-webui --allowed-group ${cfg.allowedGroup}";
         Restart = "on-failure";
         RestartSec = "3";
-        # 审计日志目录（/var/lib/utnixos-webui）
-        StateDirectory = "utnixos-webui";
+        # 审计日志目录（/var/lib/utnixos-pro-webui）
+        StateDirectory = "utnixos-pro-webui";
       };
     };
 
     # PAM 认证服务：pamtester 用它验证系统用户密码
-    security.pam.services.utnixos-webui = { };
+    security.pam.services."utnixos-pro-webui" = { };
 
     # 默认不开防火墙端口（仅本机）；允许内网访问时才开放
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.allowLan [ cfg.port ];
