@@ -24,6 +24,9 @@ ok()  { PASS=$((PASS+1)); echo "  [PASS] $*"; }
 bad() { FAIL=$((FAIL+1)); echo "  [FAIL] $*"; }
 check() { if grep -qE "$2" "$3"; then ok "$1"; else bad "$1（$3 中未找到 $2）"; fi; }
 
+# 固定为中文，使下方针对中文输出的断言保持稳定（双语实现见 script/lib/i18n.sh）
+export UTNIXOS_PRO_LANG=zh
+
 # 稳定驱动交互式脚本：脚本通过 read 从 /dev/tty（PTY）读取输入。
 # 一次灌入整串会被 PTY 行缓冲吞掉末尾输入（尤其确认 y），所以把每一行
 # 作为独立参数、逐行 printf + 延时送出，确保子进程逐个 read 到。

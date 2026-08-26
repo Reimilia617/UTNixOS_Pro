@@ -53,22 +53,22 @@ main() {
       ;;
     -h|--help|help)
       banner
-      say "用法："
-      say "  install.sh                    # 无参数：live环境=安装 / 已装系统=管理面板"
-      say "  install.sh install            # 全新安装（NixOS live 环境）"
-      say "  install.sh update             # 更新系统（同步最新代码并重建）"
-      say "  install.sh menu               # 选择/更换模块（换桌面、Shell 等）"
-      say "  install.sh rollback           # 系统回滚（--rollback 同义）"
+      say help_usage
+      say help_install
+      say help_install_cmd
+      say help_update
+      say help_menu
+      say help_rollback
       say ""
-      say "  --no-apple                    附加参数：不下载/不部署 badapple.mp4（彩蛋将不可用）"
+      say help_no_apple
       say ""
-      say "  ut 命令（安装后系统内置）等价于 sudo install.sh"
+      say help_ut
       say ""
-      say "  curl 方式安装：curl -L ${RAW_URL} | bash"
-      say "  curl 方式回滚（本地脚本坏了也能用）："
-      say "    curl -L ${RAW_URL} | sudo bash -s -- --rollback"
+      say help_curl "$RAW_URL"
+      say help_curl_rollback
+      say help_curl_rollback_cmd "$RAW_URL"
       ;;
-    *) die "未知参数：$mode（可用：install / update / menu / rollback）" ;;
+    *) die unknown_arg "$mode" ;;
   esac
 }
 

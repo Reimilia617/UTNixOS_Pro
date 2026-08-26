@@ -2,16 +2,18 @@
 # 输出 / 菜单 / sed 工具 / ASCII 画。不依赖其他模块（除 env.sh 的颜色变量）。
 
 # ---------- 输出（优先写 /dev/tty，兼容 curl | bash；无 tty 时回退 stdout）----------
+# 所有输出函数都经过 _t 翻译：第一个参数为 i18n 键（见 script/lib/i18n.sh），
+# 其余为格式串 %s 的参数；传入非键的普通字符串时原样输出。
 _tty_out() {
   # 尝试写 /dev/tty（交互终端）；失败（无tty/管道环境）则回退 stdout
   if { printf '%b' "$*" > /dev/tty; } 2>/dev/null; then :; else printf '%b' "$*"; fi
 }
-say()  { _tty_out "$*\n"; }
-info() { _tty_out "${C_CYAN}[*]${C_RESET} $*\n"; }
-ok()   { _tty_out "${C_GREEN}[✓]${C_RESET} $*\n"; }
-warn() { _tty_out "${C_YELLOW}[!]${C_RESET} $*\n"; }
-die()  { _tty_out "${C_RED}[✗]${C_RESET} $*\n"; exit 1; }
-prompt() { _tty_out "$*"; }
+say()  { _tty_out "$(_t "$@")\n"; }
+info() { _tty_out "${C_CYAN}[*]${C_RESET} $(_t "$@")\n"; }
+ok()   { _tty_out "${C_GREEN}[✓]${C_RESET} $(_t "$@")\n"; }
+warn() { _tty_out "${C_YELLOW}[!]${C_RESET} $(_t "$@")\n"; }
+die()  { _tty_out "${C_RED}[✗]${C_RESET} $(_t "$@")\n"; exit 1; }
+prompt() { _tty_out "$(_t "$@")"; }
 
 # ---------- ASCII 字符画 ----------
 banner() {
@@ -29,7 +31,7 @@ banner() {
 # ---------- 菜单：单选 ----------
 PICKED=""
 pick_one() {
-  local title="$1"; shift
+  local title; title="$(_t "$1")"; shift
   local -a names=("$@")
   local n=${#names[@]}
   PICKED=""
@@ -40,7 +42,7 @@ pick_one() {
     for ((i=0;i<n;i++)); do
       printf '  %2d) %s\n' $((i+1)) "${names[$i]}" > /dev/tty
     done
-    prompt "请选择 [1-$n]（回车=默认第1项）: "
+    prompt menu_choose "$n"
     local choice=""
     read -r choice < /dev/tty || choice="1"
     # 彩蛋：输入 touhou 播放 Bad Apple!!
@@ -59,7 +61,7 @@ pick_one() {
 # ---------- 菜单：多选开关 ----------
 PICKED_MULTI=""
 pick_multi() {
-  local title="$1"
+  local title="$(_t "$1")"
   local default_on="$2"; shift 2
   local -a names=("$@")
   local -A on=()
@@ -67,7 +69,7 @@ pick_multi() {
   for d in $default_on; do on[$d]=1; done
   local n=${#names[@]}
   say ""
-  say "${C_BOLD}== $title （输入序号切换 [x]/[ ]，回车确认） ==${C_RESET}"
+  say "${C_BOLD}== $title $(_t multi_suffix) ==${C_RESET}"
   while :; do
     local i
     for ((i=0;i<n;i++)); do
@@ -75,7 +77,7 @@ pick_multi() {
       [[ ${on[${names[$i]}]:-0} -eq 1 ]] && mark="[x]"
       printf '  %2d) %s %s\n' $((i+1)) "$mark" "${names[$i]}" > /dev/tty
     done
-    prompt "> "
+    prompt multi_prompt
     local choice=""
     read -r choice < /dev/tty || choice=""
     # 彩蛋：输入 touhou 播放 Bad Apple!!

@@ -3,10 +3,10 @@
 
 cmd_menu() {
   banner
-  [[ $EUID -eq 0 ]] || die "模块管理需要 root，请用：sudo bash install.sh menu"
+  [[ $EUID -eq 0 ]] || die menu_root
 
   TARGET_DIR="$INSTALL_DIR"
-  [[ -f "$TARGET_DIR/flake.nix" ]] || die "/etc/nixos 下没有 flake.nix，看起来不是由本脚本安装的系统？"
+  [[ -f "$TARGET_DIR/flake.nix" ]] || die noflake
   cd "$TARGET_DIR"
 
   load_state
@@ -14,12 +14,12 @@ cmd_menu() {
   apply_selection
   show_selection
 
-  prompt "确认修改并重建系统？[y/N] "
+  prompt menu_confirm
   local ans=""
   read -r ans < /dev/tty || ans="n"
-  [[ "$ans" =~ ^[Yy]$ ]] || die "已取消，configuration.nix 已修改但未重建（可手动 nixos-rebuild switch）"
+  [[ "$ans" =~ ^[Yy]$ ]] || die menu_cancel
 
-  info "开始重建系统..."
+  info rebuild_doing
   nixos-rebuild switch --flake "$TARGET_DIR#reimilia"
-  ok "模块切换完成！"
+  ok menu_done
 }

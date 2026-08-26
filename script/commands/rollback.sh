@@ -6,27 +6,27 @@ cmd_rollback() {
   banner
   # 允许测试时用 UTNIXOS_PRO_TEST_PROF 覆盖 profile 路径
   local PROF="${UTNIXOS_PRO_TEST_PROF:-/nix/var/nix/profiles/system}"
-  [[ -e "$PROF" ]] || die "找不到系统 profile：$PROF"
+  [[ -e "$PROF" ]] || die roll_no_profile "$PROF"
 
   say ""
-  say "${C_BOLD}当前系统 generations：${C_RESET}"
-  nix-env --list-generations -p "$PROF" 2>/dev/null || nix profile history --profile "$PROF" 2>/dev/null || die "无法读取 generations"
+  say "${C_BOLD}$(_t roll_current_gen)${C_RESET}"
+  nix-env --list-generations -p "$PROF" 2>/dev/null || nix profile history --profile "$PROF" 2>/dev/null || die roll_no_read
   say ""
-  say "当前运行 : $(readlink -f /run/current-system 2>/dev/null || echo 未知)"
+  say roll_current_run "$(readlink -f /run/current-system 2>/dev/null || echo $(_t roll_unknown))"
 
-  prompt "输入要回滚到的 generation 编号（直接回车 = 回滚到上一个版本）: "
+  prompt roll_prompt
   local gen=""
   read -r gen < /dev/tty || gen=""
 
   if [[ -z "$gen" ]]; then
-    info "执行 nixos-rebuild switch --rollback（回滚到上一个版本）..."
+    info roll_exec
     nixos-rebuild switch --rollback
   else
-    info "切换系统 profile 到 generation $gen ..."
+    info roll_switch_gen "$gen"
     nix-env --switch-generation "$gen" -p "$PROF"
-    info "激活该 generation ..."
+    info roll_activate
     /run/current-system/bin/switch-to-configuration switch
   fi
 
-  ok "回滚完成！如果引导还有问题，重启时可以在 GRUB 菜单里选择其他 generation"
+  ok roll_done
 }

@@ -22,13 +22,13 @@ find_badapple() {
 play_badapple() {
   local mp4
   mp4="$(find_badapple)" || {
-    say "✿ 没有找到 badapple.mp4"
-    say "  （用 --no-apple 安装的系统不会部署该文件）"
-    say "  想补上的话：把 badapple.mp4 放到 /etc/nixos/media/ 再运行 ut 重建即可"
+    say egg_notfound1
+    say egg_notfound2
+    say egg_notfound3
     return 1
   }
 
-  say "✿ 東方萃夢想！Bad Apple!! 开始播放~ (Ctrl+C 可以切回菜单)"
+  say egg_playing
   if command -v mpv >/dev/null 2>&1; then
     mpv --really-quiet "$mp4" >/dev/null 2>&1 &
   elif command -v ffplay >/dev/null 2>&1; then
@@ -38,11 +38,11 @@ play_badapple() {
   elif command -v xdg-open >/dev/null 2>&1; then
     xdg-open "$mp4" >/dev/null 2>&1 &
   elif command -v nix >/dev/null 2>&1; then
-    say "  没有找到播放器，用 nix run 临时拉取 mpv 播放..."
+    say egg_noplayer_nix
     nix run nixpkgs#mpv -- "$mp4" >/dev/null 2>&1 &
   else
-    say "  找不到任何播放器，视频文件在：$mp4"
-    say "  安装 mpv 后输入 touhou 就能播了"
+    say egg_noplayer_found "$mp4"
+    say egg_install_mpv
   fi
   sleep 1
 }

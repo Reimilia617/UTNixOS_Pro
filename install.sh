@@ -19,6 +19,29 @@
 # ============================================================================
 set -euo pipefail
 
+# ---- 语言选择（引导阶段最小实现；完整 i18n 由 script/lib/i18n.sh 提供）----
+# 与 script/lib/i18n.sh 的 detect_lang 保持一致，_t 则在该模块加载后接管。
+_boot_lang() {
+  local forced="${UTNIXOS_PRO_LANG:-}"
+  if [[ -n "$forced" ]]; then
+    case "$forced" in
+      zh|zh_*|cn|Chinese|chinese) echo zh ;;
+      *) echo en ;;
+    esac
+    return
+  fi
+  # Linux 虚拟控制台（TERM=linux）字体不含中文字形（显示成方块）→ 英文
+  [[ "${TERM:-}" == "linux" ]] && { echo en; return; }
+  case "${LC_ALL:-${LANG:-}}" in
+    zh*|zh_*) echo zh ;;
+    *) echo en ;;
+  esac
+}
+LANG_UI="$(_boot_lang)"
+_tb() { # _tb <中文> <英文>
+  if [[ "$LANG_UI" == "zh" ]]; then printf '%s' "$1"; else printf '%s' "$2"; fi
+}
+
 # ---- 引导所需的最小配置（完整配置在 script/lib/env.sh）----
 GIT_URL="${UTNIXOS_PRO_GIT_URL:-https://github.com/Reimilia617/UTNixOS_Pro.git}"
 TARBALL_URL="${UTNIXOS_PRO_TARBALL_URL:-https://github.com/Reimilia617/UTNixOS_Pro/archive/refs/heads/main.tar.gz}"
@@ -48,7 +71,7 @@ if [[ -z "$SCRIPT_SRC" ]]; then
 
   BOOT_TMP="$(mktemp -d)"
   trap 'rm -rf "$BOOT_TMP"' EXIT
-  echo "[*] 正在从 GitHub 获取 UTNixOS_Pro 脚本..."
+  echo "[*] $(_tb "正在从 GitHub 获取 UTNixOS_Pro 脚本..." "Fetching UTNixOS_Pro scripts from GitHub...")"
   if command -v git >/dev/null 2>&1; then
     # 注意：clone 失败不能触发 set -e 退出，必须留给下面的 curl|tar 回退分支。
     if [[ "$no_apple" == "1" ]]; then
@@ -69,11 +92,11 @@ if [[ -z "$SCRIPT_SRC" ]]; then
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]] && command -v curl >/dev/null 2>&1; then
     curl -fsSL "$TARBALL_URL" | tar -xz -C "$BOOT_TMP" --strip-components=1 \
-      || { echo "[✗] 获取 UTNixOS_Pro 代码失败，请检查网络" >&2; exit 1; }
+      || { echo "[✗] $(_tb "获取 UTNixOS_Pro 代码失败，请检查网络" "Failed to fetch UTNixOS_Pro code, please check your network")" >&2; exit 1; }
     [[ "$no_apple" == "1" ]] && rm -f "$BOOT_TMP/media/badapple.mp4"
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]]; then
-    echo "[✗] 拉取到的代码不完整（缺少 script/main.sh）" >&2
+    echo "[✗] $(_tb "拉取到的代码不完整（缺少 script/main.sh）" "Fetched code is incomplete (missing script/main.sh)")" >&2
     exit 1
   fi
   SCRIPT_SRC="$BOOT_TMP"

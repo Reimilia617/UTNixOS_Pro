@@ -21,6 +21,9 @@ PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  [PASS] $*"; }
 bad()  { FAIL=$((FAIL+1)); echo "  [FAIL] $*"; }
 
+# 固定为中文，使下方针对中文输出的断言保持稳定（双语实现见 script/lib/i18n.sh）
+export UTNIXOS_PRO_LANG=zh
+
 # 容器内 git 常因目录所有权被安全策略拦截，统一放行本测试用目录
 git config --global --add safe.directory '*' 2>/dev/null || true
 
@@ -206,6 +209,9 @@ mkdir -p /tmp/alone && cp /repo/install.sh /tmp/alone/install.sh
 UTNIXOS_PRO_GIT_URL=file:///repo bash /tmp/alone/install.sh help >/tmp/t6.out 2>&1
 grep -q "正在从 GitHub 获取 UTNixOS_Pro 脚本" /tmp/t6.out && ok "引导模式从 GIT_URL 拉取代码" || bad "引导模式未拉取"
 grep -q "curl 方式安装" /tmp/t6.out && ok "help 路由正常" || bad "help 输出异常"
+# 双语：英文环境应输出英文帮助
+UTNIXOS_PRO_LANG=en UTNIXOS_PRO_GIT_URL=file:///repo bash /tmp/alone/install.sh help >/tmp/t6en.out 2>&1
+grep -q "Usage:" /tmp/t6en.out && ok "双语：英文环境（UTNIXOS_PRO_LANG=en）输出英文帮助" || bad "英文环境未输出英文帮助"
 # --rollback 走引导模式完整回滚（保险方案路径）
 INPUT=()   # 回滚到 generation 22
 export UTNIXOS_PRO_GIT_URL=file:///repo UTNIXOS_PRO_TEST_PROF=/tmp/fakeprof
