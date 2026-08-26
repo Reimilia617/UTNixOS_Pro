@@ -219,6 +219,37 @@ pty_in "bash /tmp/alone/install.sh --rollback" /tmp/t6b.out '22'
 grep -q '回滚完成' /tmp/t6b.out && ok "curl|bash --rollback 保险回滚可用" || bad "引导回滚失败: $(tail -3 /tmp/t6b.out)"
 
 echo ""
+echo "========== 测试 7：auto 默认路由（live 环境 → 安装界面） =========="
+# BUG 回归：live 环境下 curl|bash 无参数时，即使 /mnt 还没挂载/生成硬件配置，
+# 也应当进入安装部署界面（而非管理面板）。live 的可靠标志是 nixos-install 在 PATH 上。
+rm -rf /mnt/etc                       # 清空 /mnt：模拟用户尚未挂载/生成硬件配置
+export UTNIXOS_PRO_TEST=1             # 阻止 source 时自动执行 main
+# shellcheck disable=SC1091
+source /repo/script/main.sh
+# source 会加载 util.sh 的同名 ok()/bad()（输出函数），覆盖了测试用的计数 helper，需重新声明
+ok()   { PASS=$((PASS+1)); echo "  [PASS] $*"; }
+bad()  { FAIL=$((FAIL+1)); echo "  [FAIL] $*"; }
+cmd_install()   { echo "ROUTED_TO=INSTALL";   return; }
+cmd_dashboard() { echo "ROUTED_TO=DASHBOARD"; return; }
+ROUTE="$(main)"
+[ "$ROUTE" = "ROUTED_TO=INSTALL" ] \
+  && ok "live 环境（有 nixos-install，/mnt 未挂载）auto → 安装界面" \
+  || bad "live 环境 auto 路由错误: $ROUTE"
+# 对照组：无 nixos-install（模拟已装系统）→ 管理面板
+rm -f /usr/local/bin/nixos-install
+ROUTE="$(main)"
+[ "$ROUTE" = "ROUTED_TO=DASHBOARD" ] \
+  && ok "已装系统（无 nixos-install，/mnt 空）auto → 管理面板" \
+  || bad "已装系统 auto 路由错误: $ROUTE"
+unset UTNIXOS_PRO_TEST
+# 恢复 stub（后续无测试依赖 nixos-install，但保持现场干净）
+cat > /usr/local/bin/nixos-install <<'STUB'
+#!/bin/bash
+echo "[stub] nixos-install $*" >> /tmp/stub.log
+STUB
+chmod +x /usr/local/bin/nixos-install
+
+echo ""
 echo "=========================================="
 echo "脚本测试结果：PASS=$PASS FAIL=$FAIL"
 echo "=========================================="

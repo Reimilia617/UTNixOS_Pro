@@ -44,8 +44,15 @@ main() {
     rollback|--rollback|-r) cmd_rollback ;;
     panel|dash|dashboard) cmd_dashboard ;;
     auto)
-      # 自动判断：live 环境（$MOUNT_ROOT 有 etc/nixos）→ install；已装系统 → 管理面板
-      if [[ -d "$MOUNT_ROOT/etc/nixos" && -f "$MOUNT_ROOT/etc/nixos/hardware-configuration.nix" ]]; then
+      # 自动判断：
+      #   - live/安装器环境（存在 nixos-install 命令，这是 live 镜像才有的标志）→ 安装部署界面
+      #   - 已装系统上又挂载了全新 /mnt 并已生成硬件配置 → 安装部署界面
+      #   - 其他（已装系统）→ 管理面板
+      # 注意：不能用「/mnt/etc/nixos/hardware-configuration.nix 存在」作为唯一判据——live 环境
+      # 里用户还没挂载/生成硬件配置时该文件并不存在，会误进管理面板。live 环境的可靠标志是
+      # nixos-install 命令在 PATH 上（已装系统不会带它）。
+      if command -v nixos-install >/dev/null 2>&1 \
+         || [[ -d "$MOUNT_ROOT/etc/nixos" && -f "$MOUNT_ROOT/etc/nixos/hardware-configuration.nix" ]]; then
         cmd_install
       else
         cmd_dashboard
