@@ -72,27 +72,45 @@ if [[ -z "$SCRIPT_SRC" ]]; then
   BOOT_TMP="$(mktemp -d)"
   trap 'rm -rf "$BOOT_TMP"' EXIT
   echo "[*] $(_tb "正在从 GitHub 获取 UTNixOS_Pro 脚本..." "Fetching UTNixOS_Pro scripts from GitHub...")"
+
+  # 代理透传：这里不是函数，不能用 local。git/curl 都显式带上环境变量里的代理
+  # （很多人只给外层 curl 加了 -x，内层 git clone/curl 不走代理 → 卡在 fetch）
+  _proxy="${https_proxy:-${HTTPS_PROXY:-${all_proxy:-${ALL_PROXY:-}}}}"
+  git_proxy=()
+  curl_proxy=()
+  if [[ -n "$_proxy" ]]; then
+    git_proxy=(-c "http.proxy=$_proxy" -c "https.proxy=$_proxy")
+    curl_proxy=(-x "$_proxy")
+    echo "    $(_tb "使用代理：" "using proxy:") $_proxy"
+  fi
+  # 防挂起：git 低速 30 秒即中止（避免断网时无限卡在 fetch）；curl 给连接/总超时
+  git_slow=(--config http.lowSpeedLimit=1000 --config http.lowSpeedTime=30)
+  export GIT_TERMINAL_PROMPT=0   # 需要凭据时直接失败，而不是卡在交互提示
+
   if command -v git >/dev/null 2>&1; then
     # 注意：clone 失败不能触发 set -e 退出，必须留给下面的 curl|tar 回退分支。
     if [[ "$no_apple" == "1" ]]; then
       # 稀疏检出：跳过 media/（badapple.mp4），加快下载
-      if ! { git clone --depth 1 --filter=blob:none --sparse "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1 \
+      if ! { git clone "${git_proxy[@]}" --depth 1 --filter=blob:none --sparse "${git_slow[@]}" "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1 \
         && git -C "$BOOT_TMP" sparse-checkout set --no-cone '/*' '!/media/' >/dev/null 2>&1; }; then
         # 稀疏检出失败 → 回退普通克隆
         rm -rf "$BOOT_TMP"
-        if ! git clone --depth 1 "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; then
+        if ! git clone "${git_proxy[@]}" --depth 1 "${git_slow[@]}" "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; then
           rm -rf "$BOOT_TMP"; mkdir -p "$BOOT_TMP"   # 仍失败 → 交给 tarball 回退
         fi
       fi
     else
-      if ! git clone --depth 1 "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; then
+      if ! git clone "${git_proxy[@]}" --depth 1 "${git_slow[@]}" "$GIT_URL" "$BOOT_TMP" >/dev/null 2>&1; then
         rm -rf "$BOOT_TMP"; mkdir -p "$BOOT_TMP"   # clone 失败 → 交给 tarball 回退
       fi
     fi
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]] && command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$TARBALL_URL" | tar -xz -C "$BOOT_TMP" --strip-components=1 \
-      || { echo "[✗] $(_tb "获取 UTNixOS_Pro 代码失败，请检查网络" "Failed to fetch UTNixOS_Pro code, please check your network")" >&2; exit 1; }
+    if ! curl -fsSL "${curl_proxy[@]}" --connect-timeout 15 --max-time 600 "$TARBALL_URL" | tar -xz -C "$BOOT_TMP" --strip-components=1; then
+      echo "[✗] $(_tb "获取 UTNixOS_Pro 代码失败，请检查网络/代理" "Failed to fetch UTNixOS_Pro code, please check your network/proxy")" >&2
+      echo "    $(_tb "提示：先 export https_proxy=http://代理地址:端口 再重试；也可加 --no-apple 跳过视频加快" "Hint: run 'export https_proxy=http://proxy:port' first and retry; add --no-apple to skip the video")" >&2
+      exit 1
+    fi
     [[ "$no_apple" == "1" ]] && rm -f "$BOOT_TMP/media/badapple.mp4"
   fi
   if [[ ! -f "$BOOT_TMP/script/main.sh" ]]; then

@@ -80,6 +80,13 @@
    > ```
    > export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890
    > # Clash 等代理还提供 SOCKS：export all_proxy=socks5://127.0.0.1:7891
+   > curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash
+   > ```
+   > 注意：**必须用 export**（而不是给 curl 加 `-x`），否则引导器内部拉取代码
+   > 的 git clone/curl 不走代理，会卡在 fetch 阶段。还嫌慢就加 `--no-apple`
+   > （跳过下载 badapple.mp4 视频，fetch 快很多）：
+   > ```
+   > curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash -s -- --no-apple
    > ```
    > 同时装的时候在镜像源菜单里选个快的（中科大/清华）。
 3. 一条命令弹出交互式菜单：
@@ -421,6 +428,8 @@ script/
   根文件系统 overlay / nixos 用户判 live
 - 8. 安装脚本自动透传代理：检测到 `https_proxy/http_proxy/all_proxy` 环境变量时，
   自动给 `nixos-install` 加 `--option proxy`（store 闭包下载也走代理）
+- 9. 引导器 fetch 阶段修复「卡死」：git clone/curl 显式透传代理环境变量、
+  低速 30 秒自动中止、curl 加连接/总超时、失败时提示先 export 代理或加 `--no-apple`
 
 ## Ver1.1
 

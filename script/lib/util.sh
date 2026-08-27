@@ -138,14 +138,17 @@ uncomment_import() {
 # ---------- 配置源码获取（--no-apple 时跳过 badapple.mp4，加快下载）----------
 # clone_config <目标目录>：优先 git clone；NO_APPLE=1 时用稀疏检出跳过 media/
 # （--filter=blob:none --sparse 只在需要时下载大文件 blob，media 里的 mp4 不会下载）
+# 防挂起：git 低速 30 秒即中止（断网时不会无限卡住）；git 本身会读 http_proxy/https_proxy 环境变量
 clone_config() {
   local dest="$1"
+  export GIT_TERMINAL_PROMPT=0
+  local slow=(--config http.lowSpeedLimit=1000 --config http.lowSpeedTime=30)
   if [[ "${NO_APPLE:-0}" == "1" ]] && git --version >/dev/null 2>&1; then
-    if git clone --depth 1 --filter=blob:none --sparse "$GIT_URL" "$dest" >/dev/null 2>&1 \
+    if git clone --depth 1 --filter=blob:none --sparse "${slow[@]}" "$GIT_URL" "$dest" >/dev/null 2>&1 \
       && git -C "$dest" sparse-checkout set --no-cone '/*' '!/media/' >/dev/null 2>&1; then
       return 0
     fi
     rm -rf "$dest"    # 稀疏检出失败 → 回退普通克隆（部署时再排除 mp4）
   fi
-  git clone --depth 1 "$GIT_URL" "$dest" >/dev/null 2>&1
+  git clone --depth 1 "${slow[@]}" "$GIT_URL" "$dest" >/dev/null 2>&1
 }
