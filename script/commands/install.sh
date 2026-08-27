@@ -69,8 +69,19 @@ cmd_install() {
 
   say ""
   info inst_start
-  nixos-install --flake "$TARGET_DIR#reimilia" \
+
+  # nixos-install 参数：flake + 镜像 substituters；若环境里有代理变量则一并传给
+  # nix（store 下载也走代理，否则只给 curl 开代理对最耗时的闭包下载没用）
+  local -a inst_opts=(
+    --flake "$TARGET_DIR#reimilia"
     --option substituters "${MIRROR_URLS[$MIRROR]:-${MIRROR_URLS[ustc]}}"
+  )
+  local _proxy="${https_proxy:-${HTTPS_PROXY:-${all_proxy:-${ALL_PROXY:-}}}}"
+  if [[ -n "$_proxy" ]]; then
+    info inst_proxy "$_proxy"
+    inst_opts+=(--option proxy "$_proxy")
+  fi
+  nixos-install "${inst_opts[@]}"
 
   say ""
   ok "${C_BOLD}$(_t inst_done)${C_RESET}"

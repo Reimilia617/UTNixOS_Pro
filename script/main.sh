@@ -24,15 +24,30 @@ for _cmd in "$DIR"/commands/*.sh; do
 done
 
 # ---------- live 环境判定 ----------
-# 之前用「nixos-install 在 PATH 上」作为 live 标志是错的：已装 NixOS 系统的默认
-# systemPackages 同样包含 nixos-install-tools（nixos-install/nixos-generate-config），
-# 导致已装系统上运行 ut 时被误判为 live 环境，进入安装界面后因 /mnt 未挂载而报错。
-# 可靠判据：
-#   - 已装系统：本项目安装时会把仓库部署到 /etc/nixos（存在即非 live）
-#   - live ISO：默认用户 nixos 存在（NixOS 官方安装镜像保证），且没有 /etc/nixos
+# 注意：不能用「/etc/nixos 是否存在」判断——NixOS live ISO 上同样有 /etc/nixos，
+# 也不能用「nixos-install 在 PATH」判断——已装系统的默认 systemPackages 也带它。
+# 可靠判据（按优先级）：
+#   1) 已装系统硬标志：/nix/var/nix/profiles/system 系统 profile 符号链接 存在
+#      且 /etc/nixos/hardware-configuration.nix 存在（本项目安装时生成并保留）
+#   2) live 硬标志：根文件系统是 overlay（NixOS live ISO 的 root = squashfs+overlay，
+#      普通安装是 ext4/btrfs 等）
+#   3) live 硬标志：标准安装 ISO 的默认用户 nixos 存在
+#   4) 兜底：既无系统 profile 又无 /etc/nixos 硬件配置 → 按 live 处理（进安装向导
+#      比进一个什么都干不了的面板更合适）
 is_live_env() {
-  [[ -d /etc/nixos ]] && return 1
-  id nixos >/dev/null 2>&1
+  if [[ -L /nix/var/nix/profiles/system ]] && [[ -f /etc/nixos/hardware-configuration.nix ]]; then
+    return 1
+  fi
+  if [[ "$(findmnt -no FSTYPE / 2>/dev/null)" == "overlay" ]]; then
+    return 0
+  fi
+  if id nixos >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ ! -L /nix/var/nix/profiles/system ]] && [[ ! -f /etc/nixos/hardware-configuration.nix ]]; then
+    return 0
+  fi
+  return 1
 }
 
 # ---------- 命令路由 ----------

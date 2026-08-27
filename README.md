@@ -74,6 +74,14 @@
    > NixOS 的 GRUB/systemd-boot 默认 EFI 目录是 `/boot`（`boot.loader.efi.efiSysMountPoint`，
    > 默认值 `/boot`）。挂到 `/boot/efi` 会导致引导程序找不到 ESP 而安装失败；
    > 除非你在配置里显式设置 `boot.loader.efi.efiSysMountPoint = "/boot/efi"`。
+   >
+   > 💡 网络慢？装系统前先**导出代理环境变量**（脚本会自动把它传给 curl/git 和
+   > `nixos-install` 的 store 下载，最耗时的闭包下载也走代理）：
+   > ```
+   > export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890
+   > # Clash 等代理还提供 SOCKS：export all_proxy=socks5://127.0.0.1:7891
+   > ```
+   > 同时装的时候在镜像源菜单里选个快的（中科大/清华）。
 3. 一条命令弹出交互式菜单：
    ```
    curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash
@@ -408,6 +416,11 @@ script/
 - 6. 修正 ESP 挂载点误导：教程改为把 ESP 挂到 `/mnt/boot`（NixOS 默认 GRUB/systemd-boot
   的 EFI 目录是 `/boot`，`/boot/efi` 是 Ubuntu 习惯会导致引导装不上）；
   安装脚本新增专门警告：检测到 ESP 挂在 `/boot/efi` 时会提示改挂 `/boot`
+- 7. 再次修复 live 环境判定：live ISO 上同样存在 `/etc/nixos`（上一版误判为已装系统），
+  现改用 `/nix/var/nix/profiles/system` + `hardware-configuration.nix` 判已装、
+  根文件系统 overlay / nixos 用户判 live
+- 8. 安装脚本自动透传代理：检测到 `https_proxy/http_proxy/all_proxy` 环境变量时，
+  自动给 `nixos-install` 加 `--option proxy`（store 闭包下载也走代理）
 
 ## Ver1.1
 

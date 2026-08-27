@@ -251,8 +251,11 @@ echo ""
 echo "========== 测试 7：auto 默认路由（live → 安装 / 已装 → 管理面板） =========="
 # BUG 回归（ut 打不开管理面板）：已装 NixOS 的 PATH 里同样有 nixos-install
 # （nixos-install-tools 是系统默认包），所以「nixos-install 在 PATH」不能作为 live 标志。
-# 正确判据：live = 无 /etc/nixos + 默认用户 nixos 存在；已装 = 存在 /etc/nixos。
-rm -rf /mnt/etc /etc/nixos             # 清空现场：模拟 live（无 /etc/nixos、/mnt 未挂载）
+# 正确判据（见 main.sh is_live_env）：
+#   - 已装 = /nix/var/nix/profiles/system 系统 profile 存在 且 /etc/nixos/hardware-configuration.nix 存在
+#   - live = 根文件系统是 overlay（live ISO）或默认用户 nixos 存在（注意：live ISO 也有 /etc/nixos！）
+rm -rf /mnt/etc /etc/nixos /nix/var/nix/profiles/system    # 清空现场：模拟 fresh live
+mkdir -p /nix/var/nix/profiles
 export UTNIXOS_PRO_TEST=1             # 阻止 source 时自动执行 main
 # shellcheck disable=SC1091
 source /repo/script/main.sh
@@ -262,32 +265,35 @@ bad()  { FAIL=$((FAIL+1)); echo "  [FAIL] $*"; }
 cmd_install()   { echo "ROUTED_TO=INSTALL";   return; }
 cmd_dashboard() { echo "ROUTED_TO=DASHBOARD"; return; }
 
-# 场景 1：live ISO（无 /etc/nixos，nixos 用户存在，且 PATH 里仍有 nixos-install）→ 安装界面
+# 场景 1：live ISO（容器 root 是 overlay = live 硬标志；nixos 用户也建一个）→ 安装界面
 id nixos >/dev/null 2>&1 || useradd -M nixos
 ROUTE="$(main)"
 [ "$ROUTE" = "ROUTED_TO=INSTALL" ] \
-  && ok "live（无 /etc/nixos + nixos 用户，即使 PATH 有 nixos-install）auto → 安装界面" \
+  && ok "live（root 是 overlay + nixos 用户，即使 PATH 有 nixos-install）auto → 安装界面" \
   || bad "live 环境 auto 路由错误: $ROUTE"
 
-# 场景 2：已装系统（/etc/nixos 存在，PATH 里仍有 nixos-install！）→ 管理面板
-# 这是「ut 打不开管理面板」的核心回归用例
+# 场景 2：已装系统（系统 profile + /etc/nixos/hardware-configuration.nix 存在，
+# PATH 里仍有 nixos-install！）→ 管理面板。这是「ut 打不开管理面板」的核心回归用例。
 mkdir -p /etc/nixos
+ln -sf /nix/store/fake-system /nix/var/nix/profiles/system
+printf '{ fileSystems."/" = { device = "/dev/vda1"; fsType = "ext4"; }; }' \
+  > /etc/nixos/hardware-configuration.nix
 ROUTE="$(main)"
 [ "$ROUTE" = "ROUTED_TO=DASHBOARD" ] \
-  && ok "已装系统（有 /etc/nixos，PATH 仍有 nixos-install）auto → 管理面板" \
+  && ok "已装系统（有系统 profile + 硬件配置，PATH 仍有 nixos-install）auto → 管理面板" \
   || bad "已装系统 auto 路由错误: $ROUTE"
 
 # 场景 3：已装系统上又挂载全新 /mnt 并生成硬件配置（重装）→ 安装界面
 mkdir -p /mnt/etc/nixos
-printf '{ fileSystems."/" = { device = "/dev/vda1"; fsType = "ext4"; }; }' \
+printf '{ fileSystems."/" = { device = "/dev/vda2"; fsType = "ext4"; }; }' \
   > /mnt/etc/nixos/hardware-configuration.nix
 ROUTE="$(main)"
 [ "$ROUTE" = "ROUTED_TO=INSTALL" ] \
   && ok "已装系统 + /mnt 新系统（重装）auto → 安装界面" \
   || bad "重装场景 auto 路由错误: $ROUTE"
 
-# 清理现场：移除模拟的 /etc/nixos /mnt 与 nixos 用户
-rm -rf /etc/nixos /mnt/etc
+# 清理现场：移除模拟的系统 profile /etc/nixos /mnt 与 nixos 用户
+rm -rf /etc/nixos /mnt/etc /nix/var/nix/profiles
 userdel nixos 2>/dev/null || true
 unset UTNIXOS_PRO_TEST
 
