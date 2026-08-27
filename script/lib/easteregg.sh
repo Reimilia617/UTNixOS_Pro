@@ -1,5 +1,6 @@
 # UTNixOS_Pro 彩蛋模块（script/lib/easteregg.sh）
-# 在模块选择界面输入 "touhou"（大小写不限）回车，播放 Bad Apple!! 影绘.mp4
+# 在任意菜单界面（ut 主菜单 / 模块选择 / 安装菜单）输入 "touhou"（大小写不限）
+# 回车，播放 Bad Apple!! 影绘.mp4
 #
 # 文件位置：media/badapple.mp4（随仓库一起部署）
 #   - live 安装/脚本运行期间：$(SCRIPT_SRC)/media/badapple.mp4

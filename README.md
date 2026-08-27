@@ -265,7 +265,7 @@ nixos-install --option substituters "https://mirrors.ustc.edu.cn/nix-channels/st
 
 # 彩蛋（Bad Apple!!）
 
-在**模块选择界面**（`ut menu` / 安装时的选择菜单）输入 `touhou` 回车，
+在**任意菜单界面**（`ut` 主菜单 / `ut menu` 模块选择 / 安装时的选择菜单）输入 `touhou` 回车，
 会播放 `media/badapple.mp4`（東方萃夢想 · Bad Apple!! 影绘）。
 
 - 大小写不限（touhou / Touhou / TOUHOU!!! 都行）

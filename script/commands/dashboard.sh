@@ -26,6 +26,11 @@ cmd_dashboard() {
     prompt dash_choose
     local choice=""
     read -r choice < /dev/tty || choice="8"
+    # 彩蛋：输入 touhou 播放 Bad Apple!!（与模块选择菜单一致）
+    if is_touhou "$choice"; then
+      play_badapple
+      continue
+    fi
     case "$choice" in
       1)
         info rebuild_doing
