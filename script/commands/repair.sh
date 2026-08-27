@@ -42,12 +42,18 @@ cmd_repair() {
     [[ -f "$mf/.utnixos-pro-selection" ]]  || cp -f "$mdir/.utnixos-pro-selection" "$mf/" 2>/dev/null || true
   done
 
-  # ---------- 3. 获取最新源码：优先复用引导器/脚本自身拉取的（SCRIPT_SRC），否则重新拉取 ----------
+  # ---------- 3. 获取最新源码：优先复用引导器拉取的临时代码，否则从 GitHub 拉取 ----------
+  # 注意：SCRIPT_SRC 若等于 TARGET_DIR（即从 /etc/nixos/install.sh 直接跑 repair），
+  # 说明「本地配置」被当成源码——它可能是旧代码，绝不能复用，必须拉最新的。
   local src=""
-  if [[ -f "${SCRIPT_SRC:-}/flake.nix" && -f "${SCRIPT_SRC:-}/install.sh" && -f "${SCRIPT_SRC:-}/script/main.sh" ]]; then
+  if [[ "${SCRIPT_SRC:-}" != "$TARGET_DIR" \
+        && -f "${SCRIPT_SRC:-}/flake.nix" && -f "${SCRIPT_SRC:-}/install.sh" && -f "${SCRIPT_SRC:-}/script/main.sh" ]]; then
     src="$SCRIPT_SRC"
     ok repair_reuse "$src"
   else
+    if [[ "${SCRIPT_SRC:-}" == "$TARGET_DIR" ]]; then
+      warn repair_local_stale
+    fi
     src="$(mktemp -d)"
     info repair_fetch
     if command -v git >/dev/null 2>&1; then

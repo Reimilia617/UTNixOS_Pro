@@ -34,9 +34,11 @@ cmd_install() {
   [[ "$ans" =~ ^[Yy]$ ]] || die inst_cancel
 
   # 获取配置源码：优先复用引导时拉取的仓库（SCRIPT_SRC，带 .git），否则自己拉取
+  # 注意：SCRIPT_SRC 若等于 INSTALL_DIR（已装系统上跑 install），那是本地旧配置，
+  # 不能复用，必须拉最新的。
   info inst_prep
   local src=""
-  if [[ -d "${SCRIPT_SRC:-}/.git" ]]; then
+  if [[ -d "${SCRIPT_SRC:-}/.git" && "${SCRIPT_SRC:-}" != "$INSTALL_DIR" ]]; then
     src="$SCRIPT_SRC"
     ok inst_reuse "$src"
   else
