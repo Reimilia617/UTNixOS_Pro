@@ -44,7 +44,13 @@ cmd_install() {
     if command -v git >/dev/null 2>&1; then
       clone_config "$src" || die inst_clone_fail
     else
-      curl -fsSL "$TARBALL_URL" | tar -xz -C "$src" --strip-components=1 || die inst_dl_fail
+      if ! curl -fsSL --connect-timeout 15 --max-time 600 "$TARBALL_URL" | tar -xz -C "$src" --strip-components=1; then
+        die inst_dl_fail
+      fi
+      # 完整性校验：解压不完整（缺 flake.nix/script）时拒绝部署
+      if [[ ! -f "$src/flake.nix" || ! -f "$src/script/main.sh" ]]; then
+        die inst_dl_fail
+      fi
       # tarball 方式下 --no-apple：直接删掉 mp4
       [[ "${NO_APPLE:-0}" == "1" ]] && rm -f "$src/media/badapple.mp4"
     fi

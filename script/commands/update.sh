@@ -22,6 +22,10 @@ cmd_update() {
     cp -f host/grub-device.nix "$bk/" 2>/dev/null || true
     git fetch origin >/dev/null 2>&1 || warn upd_fetch_fail
     git reset --hard origin/main >/dev/null 2>&1 || warn upd_reset_fail
+    # 校验：reset 后配置必须完整（缺 flake.nix 说明重置异常，绝不继续）
+    if [[ ! -f "$TARGET_DIR/flake.nix" || ! -f "$TARGET_DIR/install.sh" ]]; then
+      warn upd_incomplete
+    fi
     # 恢复机器本地文件（注意备份时是 $bk/packages.nix，不是 $bk/host/）
     mkdir -p "$TARGET_DIR/host"
     cp -f "$bk/hardware-configuration.nix" "$TARGET_DIR/" 2>/dev/null || true
@@ -34,7 +38,14 @@ cmd_update() {
   else
     local tmp
     tmp=$(mktemp -d)
-    curl -fsSL "$TARBALL_URL" | tar -xz -C "$tmp" --strip-components=1 || die upd_dl_fail
+    if ! curl -fsSL --connect-timeout 15 --max-time 600 "$TARBALL_URL" | tar -xz -C "$tmp" --strip-components=1; then
+      die upd_dl_fail
+    fi
+    # 完整性校验（关键）：下载不完整/截断/错误页时绝不替换现有配置，
+    # 否则会把 /etc/nixos 换成残缺目录（flake.nix/install.sh 丢失，ut 直接崩）
+    if [[ ! -f "$tmp/flake.nix" || ! -f "$tmp/install.sh" || ! -f "$tmp/script/main.sh" ]]; then
+      die upd_dl_incomplete
+    fi
     # 备份机器专属文件
     cp -f hardware-configuration.nix "$tmp/" 2>/dev/null || true
     cp -f "$STATE_FILE" "$tmp/" 2>/dev/null || true
@@ -44,9 +55,16 @@ cmd_update() {
     # 原子替换（保留一个 .old 以防万一；路径跟随 TARGET_DIR，便于测试/多目录）
     local old_dir="${TARGET_DIR}.old"
     rm -rf "$old_dir"
-    mv "$TARGET_DIR" "$old_dir"
+    if ! mv "$TARGET_DIR" "$old_dir"; then
+      die upd_swap_fail
+    fi
     mkdir -p "$TARGET_DIR"
-    cp -r "$tmp/." "$TARGET_DIR/"
+    if ! cp -r "$tmp/." "$TARGET_DIR/"; then
+      # 复制失败 → 回滚旧配置，绝不留半残的 /etc/nixos
+      rm -rf "$TARGET_DIR"
+      mv "$old_dir" "$TARGET_DIR"
+      die upd_swap_fail
+    fi
     ok upd_code_ok "$old_dir"
   fi
 
