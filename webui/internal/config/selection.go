@@ -16,6 +16,9 @@ type SingleGroup struct {
 	Title   string         `json:"title"`
 	Options []SingleOption `json:"options"`
 	Current string         `json:"current"` // 当前选中的选项名
+	// 引导组附加信息：GRUB 主题开关 / GRUB(BIOS) 目标磁盘（仅 boot 组填充）
+	GrubTheme  *bool  `json:"grubTheme,omitempty"`
+	GrubDevice string `json:"grubDevice,omitempty"`
 }
 
 // SingleOption 是单选分类里的一个选项。
@@ -53,25 +56,26 @@ var singleGroups = []struct {
 	options []string
 }{
 	{"desktop", "桌面环境", "desktop", []string{"xfce", "gnome", "kde", "lxqt", "hyprland", "cosmic"}},
-	{"boot", "引导加载器", "boot", []string{"grub-theme", "grub-notheme", "systemd-boot"}},
+	// 引导：先选加载器（GRUB/UEFI、GRUB/BIOS、systemd-boot），GRUB 的主题开关在 State.GrubTheme
+	{"boot", "引导加载器", "boot", []string{"grub-uefi", "grub-bios", "systemd-boot"}},
 	{"locale", "语言环境", "locale", []string{"en_US", "zh_CN"}},
 	{"input", "输入法", "input", []string{"ibus", "fcitx5"}},
-	{"mirrors", "镜像源", "mirrors", []string{"ustc", "tuna", "nju"}},
+	{"mirrors", "镜像源", "mirrors", []string{"ustc", "tuna", "nju", "sjtu"}},
 	{"shell", "默认 Shell", "shell", []string{"zsh", "bash", "fish"}},
 }
 
-// systemModules / advancedModules 与 selection.sh 中的列表一致（webui 为本面板自身）。
-var systemModules = []string{"auto-update", "clean", "nix-command", "zram", "fonts", "nopwdtodesktop", "vm-debug", "webui"}
+// systemModules / advancedModules 与 selection.sh 中的列表一致（webui 默认启用）。
+var systemModules = []string{"auto-update", "clean", "nix-command", "zram", "fonts", "webui", "nopwdtodesktop", "vm-debug"}
 var advancedModules = []string{"secrets", "impermanence", "backup", "security"}
 
-// optionFiles 返回某个单选选项对应的模块文件列表（boot 特殊：grub-theme=grub+主题）。
+// optionFiles 返回某个单选选项对应的模块文件列表（boot 特殊：GRUB 主题单独开关）。
 func optionFiles(key, name string) []string {
 	if key == "boot" {
 		switch name {
-		case "grub-theme":
-			return []string{"boot/grub.nix", "boot/grub-theme.nix"}
-		case "grub-notheme":
+		case "grub-uefi":
 			return []string{"boot/grub.nix"}
+		case "grub-bios":
+			return []string{"boot/grub-bios.nix"}
 		case "systemd-boot":
 			return []string{"boot/systemd-boot.nix"}
 		}
@@ -104,6 +108,15 @@ func (e *Editor) Overview() (*Overview, error) {
 			}
 		}
 		ov.Single[g.key] = sg
+	}
+
+	// boot 组附加信息：GRUB 主题开关 / GRUB(BIOS) 目标磁盘（读状态文件，与 TUI 共用）
+	if sg, ok := ov.Single["boot"]; ok {
+		st := e.LoadState()
+		th := st.GrubTheme
+		sg.GrubTheme = &th
+		sg.GrubDevice = st.GrubDevice
+		ov.Single["boot"] = sg
 	}
 
 	ov.Multi["system"] = MultiGroup{Key: "system", Title: "系统模块", Options: e.itemsFor(systemModules)}
@@ -166,6 +179,8 @@ func (e *Editor) itemsFor(names []string) []ModuleItem {
 type State struct {
 	Desktop       string   `json:"desktop"`
 	Boot          string   `json:"boot"`
+	GrubTheme     bool     `json:"grubTheme"`   // GRUB 主题开关（仅 GRUB 时有效）
+	GrubDevice    string   `json:"grubDevice"`  // GRUB(BIOS) 目标磁盘
 	Locale        string   `json:"locale"`
 	Input         string   `json:"input"`
 	Mirror        string   `json:"mirror"`
@@ -178,12 +193,14 @@ type State struct {
 func DefaultState() State {
 	return State{
 		Desktop:       "xfce",
-		Boot:          "grub-theme",
+		Boot:          "grub-uefi",
+		GrubTheme:     true, // 默认 GRUB + 主题（与旧版 grub-theme 行为一致）
+		GrubDevice:    "/dev/sda",
 		Locale:        "en_US",
 		Input:         "ibus",
 		Mirror:        "ustc",
 		UserShell:     "zsh",
-		SystemModules: []string{"auto-update", "clean", "nix-command", "zram", "fonts"},
+		SystemModules: []string{"auto-update", "clean", "nix-command", "zram", "fonts", "webui"},
 	}
 }
 
@@ -210,6 +227,12 @@ func (e *Editor) LoadState() State {
 	if v, ok := vals["BOOT"]; ok && v != "" {
 		st.Boot = v
 	}
+	if v, ok := vals["GRUB_THEME"]; ok {
+		st.GrubTheme = v == "yes"
+	}
+	if v, ok := vals["GRUB_DEVICE"]; ok && v != "" {
+		st.GrubDevice = v
+	}
 	if v, ok := vals["LOCALE"]; ok && v != "" {
 		st.Locale = v
 	}
@@ -228,6 +251,18 @@ func (e *Editor) LoadState() State {
 	if v, ok := vals["ADVANCED"]; ok {
 		st.Advanced = splitFields(v)
 	}
+	// 旧版本状态兼容：grub-theme/grub-notheme → grub-uefi + 主题开关
+	switch st.Boot {
+	case "grub-theme":
+		st.Boot = "grub-uefi"
+		st.GrubTheme = true
+	case "grub-notheme":
+		st.Boot = "grub-uefi"
+		st.GrubTheme = false
+	}
+	if st.GrubDevice == "" {
+		st.GrubDevice = "/dev/sda"
+	}
 	return st
 }
 
@@ -244,6 +279,8 @@ func (e *Editor) SaveState(st State) error {
 	content := fmt.Sprintf(`# UTNixOS_Pro 模块选择状态（由 Web 管理面板 / install.sh 生成，可手动修改后重新运行 update）
 DESKTOP=%s
 BOOT=%s
+GRUB_THEME=%s
+GRUB_DEVICE=%s
 LOCALE=%s
 INPUT=%s
 MIRROR=%s
@@ -251,9 +288,16 @@ USERSHELL=%s
 SYSTEM_MODULES=%s
 ADVANCED=%s
 `,
-		st.Desktop, st.Boot, st.Locale, st.Input, st.Mirror, st.UserShell,
+		st.Desktop, st.Boot, yesNo(st.GrubTheme), st.GrubDevice, st.Locale, st.Input, st.Mirror, st.UserShell,
 		strings.Join(st.SystemModules, " "), strings.Join(st.Advanced, " "))
 	return os.WriteFile(e.dir+"/.utnixos-pro-selection", []byte(content), 0o644)
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
 }
 
 // ---------- 应用选择（等价 selection.sh 的 apply_selection） ----------
@@ -298,6 +342,12 @@ func (e *Editor) Validate(st State) error {
 			return fmt.Errorf("进阶模块 %q 不在白名单内", m)
 		}
 	}
+	// GRUB(BIOS) 必须指定以 /dev/ 开头的目标磁盘
+	if st.Boot == "grub-bios" {
+		if dev := strings.TrimSpace(st.GrubDevice); !strings.HasPrefix(dev, "/dev/") {
+			return fmt.Errorf("GRUB(BIOS) 目标磁盘 %q 非法，应以 /dev/ 开头", st.GrubDevice)
+		}
+	}
 	return nil
 }
 
@@ -335,6 +385,29 @@ func (e *Editor) Apply(st State) ([]string, error) {
 			}
 		}
 		changed = append(changed, fmt.Sprintf("%s -> %s", g.title, current))
+	}
+
+	// GRUB 主题开关（仅 GRUB 引导时有效；systemd-boot 强制关闭）
+	if st.Boot == "grub-uefi" || st.Boot == "grub-bios" {
+		if e.ModuleEnabled("boot/grub-theme.nix") != st.GrubTheme {
+			if err := e.SetModuleEnabled("boot/grub-theme.nix", st.GrubTheme); err != nil {
+				return nil, err
+			}
+			changed = append(changed, fmt.Sprintf("GRUB 主题 %s", onOff(st.GrubTheme)))
+		}
+	} else if e.ModuleEnabled("boot/grub-theme.nix") {
+		if err := e.SetModuleEnabled("boot/grub-theme.nix", false); err != nil {
+			return nil, err
+		}
+		changed = append(changed, "GRUB 主题 关闭（systemd-boot 不支持主题）")
+	}
+
+	// GRUB(BIOS) 目标磁盘 → 机器本地文件 host/grub-device.nix
+	if err := e.writeGrubDevice(st); err != nil {
+		return nil, err
+	}
+	if st.Boot == "grub-bios" {
+		changed = append(changed, "GRUB 目标磁盘 -> "+st.GrubDevice)
 	}
 
 	// 多选：系统模块

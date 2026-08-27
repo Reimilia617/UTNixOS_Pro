@@ -72,6 +72,13 @@
     #    只验证主题/字体等目录确实在系统里）
     machine.succeed("ls /run/current-system/sw/bin/zsh")
 
+    # 6. Web 管理面板（默认启用）：systemd 服务在跑 + 健康检查通过 + 二进制已进系统 PATH
+    machine.wait_until_succeeds("systemctl is-active utnixos-pro-webui", timeout=120)
+    machine.succeed("test -x /run/current-system/sw/bin/webui")
+    machine.wait_until_succeeds(
+        "curl -s http://127.0.0.1:8090/api/health | grep -q '\"ok\":true'", timeout=60
+    )
+
     print("UTNixOS_Pro boot test: ALL PASSED")
   '';
 }

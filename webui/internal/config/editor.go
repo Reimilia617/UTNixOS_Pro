@@ -7,6 +7,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -177,4 +178,32 @@ func homeShellName(body string) (string, bool) {
 		return "", false
 	}
 	return strings.TrimSuffix(name, ".nix"), true
+}
+
+// writeGrubDevice 维护机器本地文件 host/grub-device.nix：
+// configuration.nix 始终 import 该文件；选中 GRUB(BIOS) 时写入目标磁盘，
+// 否则写成空模块（不产生任何配置）。与 selection.sh 的 write_grub_device 同语义。
+func (e *Editor) writeGrubDevice(st State) error {
+	f := e.dir + "/host/grub-device.nix"
+	if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+		return err
+	}
+	if st.Boot == "grub-bios" {
+		dev := strings.TrimSpace(st.GrubDevice)
+		if dev == "" {
+			dev = "/dev/sda"
+		}
+		content := fmt.Sprintf(`# UTNixOS_Pro - GRUB(BIOS) 引导设备（机器本地文件，自动维护）
+# 警告：此文件由安装脚本 / Web 管理面板自动写入，请勿手动编辑；ut update 时会自动保留。
+{ ... }: {
+  boot.loader.grub.device = %q;
+}
+`, dev)
+		return os.WriteFile(f, []byte(content), 0o644)
+	}
+	content := `# UTNixOS_Pro - GRUB(BIOS) 引导设备（机器本地文件，自动维护）
+# 当前为空模块：表示未使用 GRUB(BIOS)，不产生任何配置。
+{ ... }: { }
+`
+	return os.WriteFile(f, []byte(content), 0o644)
 }

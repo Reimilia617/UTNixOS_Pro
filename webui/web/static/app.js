@@ -208,6 +208,23 @@ document.querySelectorAll('.actions [data-op]').forEach(btn => {
 /* ---------- 模块 ---------- */
 let moduleOverview = null;
 
+/* 模块选项的中文显示名（与 TUI 菜单的 opt_* 对应；找不到就用原始名） */
+const OPT_LABELS = {
+  'xfce': 'XFCE（轻量经典桌面）', 'gnome': 'GNOME（现代简洁桌面）', 'kde': 'KDE Plasma（可定制桌面）',
+  'lxqt': 'LXQt（极轻量桌面）', 'hyprland': 'Hyprland（平铺 Wayland）', 'cosmic': 'COSMIC（System76 新桌面）',
+  'grub-uefi': 'GRUB（UEFI 启动）', 'grub-bios': 'GRUB（BIOS/传统启动）', 'systemd-boot': 'systemd-boot（仅 UEFI，快）',
+  'en_US': '英文（美国）', 'zh_CN': '中文（中国）',
+  'ibus': 'IBus + Rime（拼音）', 'fcitx5': 'Fcitx5（KDE 推荐）',
+  'ustc': '中科大镜像', 'tuna': '清华镜像', 'nju': '南京大学镜像', 'sjtu': '上海交大镜像',
+  'zsh': 'Zsh（带 Oh My Zsh）', 'bash': 'Bash', 'fish': 'Fish',
+  'auto-update': '自动更新', 'clean': '自动清理垃圾', 'nix-command': 'Flakes 实验特性', 'zram': 'ZRAM 内存压缩',
+  'fonts': '统一字体（Noto+Nerd）', 'webui': 'Web 管理面板', 'nopwdtodesktop': '免密自动登录', 'vm-debug': 'VM 调试',
+  'secrets': '密钥管理（sops-nix）', 'impermanence': '根分区不持久化', 'backup': '定时备份（restic）', 'security': '安全加固（fail2ban）',
+};
+function optLabel(name) {
+  return OPT_LABELS[name] ? OPT_LABELS[name] + ' (' + name + ')' : name;
+}
+
 async function loadModules() {
   try {
     moduleOverview = await api('/api/modules');
@@ -221,11 +238,36 @@ async function loadModules() {
       const items = el('div', 'items');
       g.options.forEach(opt => {
         const isCurrent = opt.name === g.current;
-        const chip = el('div', 'chip ' + (isCurrent ? 'on' : 'off'), opt.name);
+        const chip = el('div', 'chip ' + (isCurrent ? 'on' : 'off'), optLabel(opt.name));
         chip.addEventListener('click', () => selectSingle(g.key, opt.name));
         items.append(chip);
       });
       box.append(items);
+
+      // 引导组附加项：GRUB 主题开关 / GRUB(BIOS) 目标磁盘
+      if (g.key === 'boot' && (g.current === 'grub-uefi' || g.current === 'grub-bios')) {
+        const extra = el('div', 'grub-extra');
+        const cb = el('input');
+        cb.type = 'checkbox';
+        cb.id = 'grubThemeCb';
+        cb.checked = !!g.grubTheme;
+        const lbl = el('label', 'grub-extra-item');
+        lbl.append(cb, document.createTextNode(' GRUB 主题（Reimu）'));
+        extra.append(lbl);
+        if (g.current === 'grub-bios') {
+          const dl = el('label', 'grub-extra-item');
+          dl.append(document.createTextNode(' GRUB(BIOS) 安装磁盘: '));
+          const inp = el('input');
+          inp.type = 'text';
+          inp.id = 'grubDeviceIn';
+          inp.value = g.grubDevice || '/dev/sda';
+          inp.style.width = '180px';
+          inp.placeholder = '/dev/sda';
+          dl.append(inp);
+          extra.append(dl);
+        }
+        box.append(extra);
+      }
       wrap.append(box);
     });
 
@@ -235,7 +277,7 @@ async function loadModules() {
       box.append(el('div', 'group-title', g.title + '（多选）'));
       const items = el('div', 'items');
       g.options.forEach(m => {
-        const chip = el('div', 'chip ' + (m.enabled ? 'on' : 'off'), m.name);
+        const chip = el('div', 'chip ' + (m.enabled ? 'on' : 'off'), optLabel(m.name));
         chip.addEventListener('click', () => toggleMulti(g.key, m.name));
         items.append(chip);
       });
@@ -249,7 +291,7 @@ async function loadModules() {
       box.append(el('div', 'group-title', '其他模块（只读展示，请手动编辑 configuration.nix）'));
       const items = el('div', 'items');
       moduleOverview.other.forEach(m => {
-        items.append(el('div', 'chip disabled ' + (m.enabled ? 'on' : 'off'), m.name));
+        items.append(el('div', 'chip disabled ' + (m.enabled ? 'on' : 'off'), optLabel(m.name)));
       });
       box.append(items);
       wrap.append(box);
@@ -272,9 +314,15 @@ function toggleMulti(key, name) {
 
 $('applyModulesBtn').addEventListener('click', async () => {
   if (!moduleOverview) return;
+  const boot = moduleOverview.single.boot.current;
+  const grubBoot = (boot === 'grub-uefi' || boot === 'grub-bios');
+  const grubCb = $('grubThemeCb');
+  const devIn = $('grubDeviceIn');
   const selection = {
     desktop: moduleOverview.single.desktop.current,
-    boot: moduleOverview.single.boot.current,
+    boot,
+    grubTheme: grubBoot ? !!grubCb && grubCb.checked : true,
+    grubDevice: (grubBoot && devIn && devIn.value.trim()) ? devIn.value.trim() : '/dev/sda',
     locale: moduleOverview.single.locale.current,
     input: moduleOverview.single.input.current,
     mirror: moduleOverview.single.mirrors.current,

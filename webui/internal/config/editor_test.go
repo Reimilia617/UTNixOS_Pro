@@ -7,12 +7,14 @@ import (
 	"testing"
 )
 
-// setup 把仓库真实的 configuration.nix / home-manager.nix / modules 复制到临时目录。
+// setup 把仓库真实的 configuration.nix / home-manager.nix / modules / host 复制到临时目录。
 func setup(t *testing.T) *Editor {
 	t.Helper()
 	repo := filepath.Join("..", "..", "..") // webui/internal/config -> 仓库根
 	dir := t.TempDir()
-	copyTree(t, repo, dir, "modules")
+	for _, rel := range []string{"modules", "host"} {
+		copyTree(t, repo, dir, rel)
+	}
 	for _, f := range []string{"configuration.nix", "home/home-manager.nix"} {
 		copyFile(t, repo, dir, f)
 	}
@@ -68,11 +70,12 @@ func TestModuleEnabledInitial(t *testing.T) {
 	cases := map[string]bool{
 		"system/clean.nix":       true,
 		"system/auto-update.nix": true,
-		"system/webui.nix":       false,
+		"system/webui.nix":       true,
 		"system/secrets.nix":     false,
 		"desktop/xfce.nix":       true,
 		"desktop/kde.nix":        false,
 		"boot/grub.nix":          true,
+		"boot/grub-bios.nix":     false,
 		"boot/grub-theme.nix":    true,
 		"boot/systemd-boot.nix":  false,
 	}
@@ -109,7 +112,8 @@ func TestApplySelection(t *testing.T) {
 		"desktop/xfce.nix":        false,
 		"desktop/kde.nix":         true,
 		"boot/grub.nix":           false,
-		"boot/grub-theme.nix":     false,
+		"boot/grub-bios.nix":      false,
+		"boot/grub-theme.nix":     false, // systemd-boot 强制关闭主题
 		"boot/systemd-boot.nix":   true,
 		"locale/zh_CN.nix":        true,
 		"locale/en_US.nix":        false,
@@ -125,6 +129,15 @@ func TestApplySelection(t *testing.T) {
 		if got := e.ModuleEnabled(mod); got != want {
 			t.Errorf("apply 后 ModuleEnabled(%q) = %v, want %v", mod, got, want)
 		}
+	}
+
+	// 非 grub-bios：host/grub-device.nix 应为空模块
+	dev, err := os.ReadFile(e.dir + "/host/grub-device.nix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dev), "boot.loader.grub.device") {
+		t.Errorf("systemd-boot 下 host/grub-device.nix 不应写设备:\n%s", dev)
 	}
 
 	// home-manager shell 同步（按行精确检查注释状态）
@@ -158,6 +171,44 @@ func TestApplySelection(t *testing.T) {
 	}
 	if !contains(st2.SystemModules, "webui") || !contains(st2.Advanced, "secrets") {
 		t.Errorf("LoadState 多选回读不一致: %+v", st2)
+	}
+}
+
+func TestApplyGrubBIOS(t *testing.T) {
+	e := setup(t)
+	st := DefaultState()
+	st.Boot = "grub-bios"
+	st.GrubTheme = true
+	st.GrubDevice = "/dev/sdb"
+	if _, err := e.Apply(st); err != nil {
+		t.Fatalf("Apply grub-bios: %v", err)
+	}
+	if got := e.ModuleEnabled("boot/grub-bios.nix"); !got {
+		t.Error("grub-bios.nix 应启用")
+	}
+	if got := e.ModuleEnabled("boot/grub.nix"); got {
+		t.Error("grub.nix(UEFI) 应关闭")
+	}
+	if got := e.ModuleEnabled("boot/grub-theme.nix"); !got {
+		t.Error("GRUB 主题应启用")
+	}
+	dev, err := os.ReadFile(e.dir + "/host/grub-device.nix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dev), `boot.loader.grub.device = "/dev/sdb"`) {
+		t.Errorf("host/grub-device.nix 应写入 /dev/sdb:\n%s", dev)
+	}
+	st2 := e.LoadState()
+	if st2.Boot != "grub-bios" || !st2.GrubTheme || st2.GrubDevice != "/dev/sdb" {
+		t.Errorf("LoadState 回读 grub-bios 状态不一致: %+v", st2)
+	}
+
+	// 非法设备应被 Validate 拒绝
+	bad := st
+	bad.GrubDevice = "../etc/passwd"
+	if err := e.Validate(bad); err == nil {
+		t.Error("非法 GRUB 磁盘路径应被拒绝")
 	}
 }
 
@@ -217,17 +268,20 @@ func TestOverview(t *testing.T) {
 	if ov.Single["desktop"].Current != "xfce" {
 		t.Errorf("desktop current = %q, want xfce", ov.Single["desktop"].Current)
 	}
-	if ov.Single["boot"].Current != "grub-theme" {
-		t.Errorf("boot current = %q, want grub-theme", ov.Single["boot"].Current)
+	if ov.Single["boot"].Current != "grub-uefi" {
+		t.Errorf("boot current = %q, want grub-uefi", ov.Single["boot"].Current)
+	}
+	if ov.Single["boot"].GrubTheme == nil || !*ov.Single["boot"].GrubTheme {
+		t.Errorf("boot 组应带 grubTheme=true（默认 GRUB+主题），got %v", ov.Single["boot"].GrubTheme)
 	}
 	found := false
 	for _, m := range ov.Multi["system"].Options {
-		if m.Name == "webui" && !m.Enabled {
+		if m.Name == "webui" && m.Enabled {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("system 多选组应包含未启用的 webui 选项")
+		t.Error("system 多选组应包含已启用的 webui 选项（默认开启）")
 	}
 	if len(ov.Other) == 0 {
 		t.Error("应展示其他模块（network/users 等）")

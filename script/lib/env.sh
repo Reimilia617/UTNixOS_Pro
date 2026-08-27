@@ -16,6 +16,7 @@ declare -A MIRROR_URLS=(
   [ustc]="https://mirrors.ustc.edu.cn/nix-channels/store https://cache.nixos.org/"
   [tuna]="https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/"
   [nju]="https://mirrors.nju.edu.cn/nix-channels/store https://cache.nixos.org/"
+  [sjtu]="https://mirror.sjtu.edu.cn/nix-channels/store https://cache.nixos.org/"
 )
 
 # ---------- 颜色 ----------

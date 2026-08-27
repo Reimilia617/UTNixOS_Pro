@@ -121,16 +121,31 @@ echo "$ST" | grep -q '"hasFlake":true' && ok "status 识别 flake 配置目录" 
 echo "$ST" | grep -q '"configDir":"/etc/nixos"' && ok "status 配置目录正确" || bad "status: $ST"
 MODS=$(api http://127.0.0.1:8090/api/modules)
 echo "$MODS" | grep -q '"key":"desktop"' && ok "modules 含 desktop 组" || bad "modules 缺 desktop"
-echo "$MODS" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['single']['desktop']['current']=='xfce', d['single']['desktop']; assert d['single']['boot']['current']=='grub-theme'; assert any(m['name']=='webui' and not m['enabled'] for m in d['multi']['system']['options']); assert len(d['other'])>0; print('modules 结构正确: desktop=xfce boot=grub-theme webui=off other=%d' % len(d['other']))" \
+echo "$MODS" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['single']['desktop']['current']=='xfce', d['single']['desktop']; assert d['single']['boot']['current']=='grub-uefi', d['single']['boot']; assert d['single']['boot']['grubTheme'] is True; assert any(m['name']=='webui' and m['enabled'] for m in d['multi']['system']['options']); assert len(d['other'])>0; print('modules 结构正确: desktop=xfce boot=grub-uefi(主题开) webui=on other=%d' % len(d['other']))" \
   && ok "modules 结构与当前配置一致" || bad "modules 结构异常"
 
-# 5. 模块应用（切换到 kde + 开启 webui）
-SEL='{"selection":{"desktop":"kde","boot":"grub-theme","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'
+# 5. 模块应用（切换到 kde；webui 默认已开启）
+SEL='{"selection":{"desktop":"kde","boot":"grub-uefi","grubTheme":true,"grubDevice":"/dev/sda","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'
 RES=$(api -X POST http://127.0.0.1:8090/api/modules/apply -H 'Content-Type: application/json' -d "$SEL")
 echo "$RES" | grep -q '"changed"' && ok "modules/apply 返回修改摘要" || bad "modules/apply: $RES"
 grep -q '^[[:space:]]*\./modules/desktop/kde\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 已切到 kde" || bad "configuration.nix 未切换"
 grep -q '^[[:space:]]*\./modules/system/webui\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 已开启 webui" || bad "webui 未开启"
 grep -q '^DESKTOP=kde$' /etc/nixos/.utnixos-pro-selection && ok ".utnixos-pro-selection 已写入（与 TUI 共用）" || bad "状态文件未写入"
+
+# 5.5 模块应用：切到 GRUB(BIOS) 应写入目标磁盘（BIOS 引导修复回归）
+SEL_BIOS='{"selection":{"desktop":"kde","boot":"grub-bios","grubTheme":true,"grubDevice":"/dev/vdb","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'
+RES=$(api -X POST http://127.0.0.1:8090/api/modules/apply -H 'Content-Type: application/json' -d "$SEL_BIOS")
+grep -q '^[[:space:]]*\./modules/boot/grub-bios\.nix' /etc/nixos/configuration.nix && ok "apply grub-bios 后 grub-bios.nix 启用" || bad "grub-bios.nix 未启用"
+grep -q '^[[:space:]]*[^#]*\./modules/boot/grub\.nix' /etc/nixos/configuration.nix && bad "grub(UEFI) 应被注释" || ok "apply grub-bios 后 grub(UEFI) 关闭"
+grep -q 'boot.loader.grub.device = "/dev/vdb"' /etc/nixos/host/grub-device.nix && ok "host/grub-device.nix 写入 /dev/vdb" || bad "host/grub-device.nix 未写设备"
+grep -q '^BOOT=grub-bios$' /etc/nixos/.utnixos-pro-selection && ok "状态文件 BOOT=grub-bios" || bad "状态文件 BOOT 错误"
+# 非法设备应被 API 拒绝
+CODE=$(api -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8090/api/modules/apply \
+  -H 'Content-Type: application/json' -d '{"selection":{"desktop":"kde","boot":"grub-bios","grubTheme":true,"grubDevice":"../etc/passwd","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}')
+expect_code "非法 GRUB 磁盘被拒" 400 "$CODE"
+# 切回 grub-uefi（恢复现场，后续测试基于 grub-uefi）
+SEL_BACK='{"selection":{"desktop":"kde","boot":"grub-uefi","grubTheme":true,"grubDevice":"/dev/sda","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'
+api -X POST http://127.0.0.1:8090/api/modules/apply -H 'Content-Type: application/json' -d "$SEL_BACK" >/dev/null
 
 # 6. 软件包（声明式）
 PKG=$(api http://127.0.0.1:8090/api/packages)

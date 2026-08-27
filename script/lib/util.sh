@@ -30,6 +30,31 @@ banner() {
 
 # ---------- 菜单：单选 ----------
 PICKED=""
+
+# 选项显示名：优先 opt_<name> 的翻译（i18n），找不到就显示原始模块名。
+# 例：auto-update → 「自动更新(auto-update)」；en_US 等无翻译的保持原名。
+opt_label() {
+  local name="$1"
+  local t
+  t="$(_t "opt_${name}")"
+  if [[ "$t" != "opt_${name}" ]]; then
+    printf '%s (%s)' "$t" "$name"
+  else
+    printf '%s' "$name"
+  fi
+}
+
+# 空格分隔的值列表 → 逐个转显示名（如 "auto-update clean" → "自动更新(auto-update) 自动清理垃圾(clean)"）
+label_list() {
+  local -a out=()
+  local w
+  for w in $1; do
+    [[ -n "$w" ]] || continue
+    out+=("$(opt_label "$w")")
+  done
+  printf '%s' "${out[*]}"
+}
+
 pick_one() {
   local title; title="$(_t "$1")"; shift
   local -a names=("$@")
@@ -40,7 +65,7 @@ pick_one() {
     say "${C_BOLD}== $title ==${C_RESET}"
     local i
     for ((i=0;i<n;i++)); do
-      printf '  %2d) %s\n' $((i+1)) "${names[$i]}" > /dev/tty
+      printf '  %2d) %s\n' $((i+1)) "$(opt_label "${names[$i]}")" > /dev/tty
     done
     prompt menu_choose "$n"
     local choice=""
@@ -75,7 +100,7 @@ pick_multi() {
     for ((i=0;i<n;i++)); do
       local mark="[ ]"
       [[ ${on[${names[$i]}]:-0} -eq 1 ]] && mark="[x]"
-      printf '  %2d) %s %s\n' $((i+1)) "$mark" "${names[$i]}" > /dev/tty
+      printf '  %2d) %s %s\n' $((i+1)) "$mark" "$(opt_label "${names[$i]}")" > /dev/tty
     done
     prompt multi_prompt
     local choice=""

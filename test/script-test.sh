@@ -10,11 +10,13 @@
 #
 # 覆盖：
 #   1. install.sh install  默认选项全新安装流程（菜单→改配置→部署→nixos-install）
-#   2. install.sh install  自定义选项（gnome/systemd-boot/zh_CN/fcitx5/tuna/fish/webui/secrets）
+#   2. install.sh install  自定义选项（systemd-boot/gnome/zh_CN/fcitx5/tuna/fish/vm-debug/secrets）
+#   2.5 install.sh install GRUB(BIOS)+主题+目标磁盘（BIOS 引导修复回归）
 #   3. install.sh menu     已装系统换模块（kde + 重建）
 #   4. install.sh update   同步代码 + 保留机器文件 + 重放选择 + 重建
 #   5. install.sh rollback 回滚到指定 generation（stub profile）
 #   6. install.sh 引导模式（curl|bash 等价路径：从 GIT_URL 拉取模块）
+#   7. auto 默认路由：live → 安装界面；已装系统（即使 PATH 有 nixos-install）→ 管理面板
 # ============================================================================
 set -u
 PASS=0; FAIL=0
@@ -96,47 +98,54 @@ chmod +x /run/current-system/bin/switch-to-configuration
 
 echo ""
 echo "========== 测试 1：install.sh install（默认选项） =========="
-INPUT=()   # 全部默认 + 确认安装
-pty_in "bash /repo/install.sh install" /tmp/t1.out '' '' '' '' '' '' '' '' 'y'
+INPUT=()   # 全部默认 + 确认安装（新菜单顺序：引导→主题→桌面→…）
+pty_in "bash /repo/install.sh install" /tmp/t1.out '' '' '' '' '' '' '' '' '' '' 'y'
 echo "--- 输出片段 ---"; grep -E "安装完成|✓|✗|错误" /tmp/t1.out | head -8
 CFG=/mnt/etc/nixos/configuration.nix
 [ -f "$CFG" ] && ok "configuration.nix 已部署到 /mnt/etc/nixos" || bad "configuration.nix 未部署"
 [ -f /mnt/etc/nixos/.utnixos-pro-selection ] && ok ".utnixos-pro-selection 已生成" || bad ".utnixos-pro-selection 未生成"
 [ -f /mnt/etc/nixos/hardware-configuration.nix ] && ok "hardware-configuration.nix 已生成" || bad "hardware-configuration.nix 未生成"
 [ -f /mnt/etc/nixos/script/main.sh ] && ok "script/ 模块已随配置部署" || bad "script/ 未部署"
+[ -f /mnt/etc/nixos/host/grub-device.nix ] && ok "host/grub-device.nix 已部署" || bad "host/grub-device.nix 未部署"
 check "桌面默认 xfce 启用"        '^[[:space:]]*\./modules/desktop/xfce\.nix' "$CFG"
 check_not "桌面 gnome 未启用"     '^[[:space:]]*[^#]*\./modules/desktop/gnome\.nix' "$CFG"
-check "引导默认 GRUB+主题"        '^[[:space:]]*\./modules/boot/grub\.nix' "$CFG"
+check "引导默认 GRUB(UEFI)"       '^[[:space:]]*\./modules/boot/grub\.nix' "$CFG"
+check "GRUB 主题默认启用"         '^[[:space:]]*\./modules/boot/grub-theme\.nix' "$CFG"
+check_not "grub-bios 默认关闭"    '^[[:space:]]*[^#]*\./modules/boot/grub-bios\.nix' "$CFG"
 check "语言默认 en_US"            '^[[:space:]]*\./modules/locale/en_US\.nix' "$CFG"
 check "输入法默认 ibus"           '^[[:space:]]*\./modules/input/ibus\.nix' "$CFG"
 check "镜像默认 ustc"             '^[[:space:]]*\./modules/mirrors/ustc\.nix' "$CFG"
 check "Shell 默认 zsh"            '^[[:space:]]*\./modules/shell/zsh\.nix' "$CFG"
-for m in auto-update clean nix-command zram fonts; do
+for m in auto-update clean nix-command zram fonts webui; do
   check "系统模块 $m 默认启用"    "^[[:space:]]*\./modules/system/$m\.nix" "$CFG"
 done
-check_not "webui 默认关闭"        '^[[:space:]]*[^#]*\./modules/system/webui\.nix' "$CFG"
 check_not "secrets 默认关闭"      '^[[:space:]]*[^#]*\./modules/system/secrets\.nix' "$CFG"
 check "home-manager shell=zsh"    '^[[:space:]]*\./shell/zsh\.nix' /mnt/etc/nixos/home/home-manager.nix
 grep -q '^DESKTOP=xfce$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 DESKTOP=xfce" || bad "状态文件 DESKTOP 错误"
+grep -q '^BOOT=grub-uefi$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 BOOT=grub-uefi" || bad "状态文件 BOOT 错误"
+grep -q '^GRUB_THEME=yes$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 GRUB_THEME=yes" || bad "状态文件 GRUB_THEME 错误"
 grep -q '^USERSHELL=zsh$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 USERSHELL=zsh" || bad "状态文件 USERSHELL 错误"
 grep -q 'nixos-install --flake /mnt/etc/nixos#reimilia --option substituters' /tmp/stub.log \
   && ok "nixos-install 以 flake+镜像源 调用" || bad "nixos-install 调用参数不符: $(grep nixos-install /tmp/stub.log)"
 
 echo ""
 echo "========== 测试 2：install.sh install（自定义选项） =========="
-# gnome(2) systemd-boot(3) zh_CN(2) fcitx5(2) tuna(2) fish(3) webui(8) secrets(1)
-INPUT=()   # gnome(2) systemd-boot(3) zh_CN(2) fcitx5(2) tuna(2) fish(3) webui(8) secrets(1)
-pty_in "bash /repo/install.sh install" /tmp/t2.out '2' '3' '2' '2' '2' '3' '8' '' '1' '' 'y'
+# 引导 systemd-boot(3)（无主题/磁盘问题）→ 桌面 gnome(2) → zh_CN(2) → fcitx5(2) → tuna(2) → fish(3)
+# → 系统模块 vm-debug(8)（webui 已默认开）→ 进阶 secrets(1)
+INPUT=()
+pty_in "bash /repo/install.sh install" /tmp/t2.out '3' '2' '2' '2' '2' '3' '8' '' '1' '' 'y'
 grep -E "安装完成|✓|✗" /tmp/t2.out | head -6
 check "自定义桌面 gnome 启用"     '^[[:space:]]*\./modules/desktop/gnome\.nix' "$CFG"
 check_not "xfce 被注释"           '^[[:space:]]*[^#]*\./modules/desktop/xfce\.nix' "$CFG"
 check "systemd-boot 启用"         '^[[:space:]]*\./modules/boot/systemd-boot\.nix' "$CFG"
 check_not "grub 被注释"           '^[[:space:]]*[^#]*\./modules/boot/grub\.nix' "$CFG"
+check_not "grub 主题被注释"       '^[[:space:]]*[^#]*\./modules/boot/grub-theme\.nix' "$CFG"
 check "zh_CN 启用"                '^[[:space:]]*\./modules/locale/zh_CN\.nix' "$CFG"
 check "fcitx5 启用"               '^[[:space:]]*\./modules/input/fcitx5\.nix' "$CFG"
 check "tuna 启用"                 '^[[:space:]]*\./modules/mirrors/tuna\.nix' "$CFG"
 check "fish 启用"                 '^[[:space:]]*\./modules/shell/fish\.nix' "$CFG"
 check "webui 启用"                '^[[:space:]]*\./modules/system/webui\.nix' "$CFG"
+check "vm-debug 启用"             '^[[:space:]]*\./modules/system/vm-debug\.nix' "$CFG"
 check "secrets 启用"              '^[[:space:]]*\./modules/system/secrets\.nix' "$CFG"
 check "home-manager shell=fish"   '^[[:space:]]*\./shell/fish\.nix' /mnt/etc/nixos/home/home-manager.nix
 check_not "home-manager zsh 关闭" '^[[:space:]]*[^#]*\./shell/zsh\.nix' /mnt/etc/nixos/home/home-manager.nix
@@ -145,6 +154,24 @@ grep -q '^BOOT=systemd-boot$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状�
 grep -q '^USERSHELL=fish$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 USERSHELL=fish" || bad "状态文件 USERSHELL 错误"
 grep -q '^SYSTEM_MODULES=.*webui' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 含 webui" || bad "状态文件 不含 webui"
 grep -q '^ADVANCED=secrets' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 含 secrets" || bad "状态文件 不含 secrets"
+
+echo ""
+echo "========== 测试 2.5：install.sh install（GRUB BIOS + 主题 + 目标磁盘） =========="
+# BUG 回归：BIOS 启动必须能选 GRUB(BIOS) 并写入目标磁盘
+# （旧版只有 grub.nix(efiSupport+nodev) 无法在 BIOS/MBR 上安装引导器）
+# 引导 grub-bios(2) → 主题(回车=开) → 磁盘手动输入 /dev/sda → 其余默认
+rm -f /tmp/stub.log; rm -rf /mnt/etc; mkdir -p /mnt/etc
+INPUT=()
+pty_in "bash /repo/install.sh install" /tmp/t25.out '2' '' '/dev/sda' '' '' '' '' '' '' '' 'y'
+grep -E "安装完成|GRUB 目标磁盘|✓|✗" /tmp/t25.out | head -6
+check "grub-bios 启用"            '^[[:space:]]*\./modules/boot/grub-bios\.nix' "$CFG"
+check_not "grub(UEFI) 关闭"       '^[[:space:]]*[^#]*\./modules/boot/grub\.nix' "$CFG"
+check "grub-bios 主题启用"        '^[[:space:]]*\./modules/boot/grub-theme\.nix' "$CFG"
+grep -q 'boot.loader.grub.device = "/dev/sda"' /mnt/etc/nixos/host/grub-device.nix \
+  && ok "host/grub-device.nix 写入 /dev/sda" || bad "host/grub-device.nix 未写入设备"
+grep -q '^BOOT=grub-bios$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 BOOT=grub-bios" || bad "状态文件 BOOT 错误"
+grep -q '^GRUB_THEME=yes$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 GRUB_THEME=yes" || bad "状态文件 GRUB_THEME 错误"
+grep -q '^GRUB_DEVICE=/dev/sda$' /mnt/etc/nixos/.utnixos-pro-selection && ok "状态文件 GRUB_DEVICE=/dev/sda" || bad "状态文件 GRUB_DEVICE 错误"
 
 echo ""
 echo "========== 测试 3：install.sh menu（已装系统换模块） =========="
@@ -163,9 +190,9 @@ git -C /etc/nixos push -q origin main
 # 本地修改机器文件（模拟 Web 面板/手工改动，提交里没有这些内容）
 echo '# MACHINE hardware v2' > /etc/nixos/hardware-configuration.nix
 printf '# machine-local packages v2\nhtop\nripgrep\n' > /etc/nixos/host/packages.nix
-# kde(3) 其余默认
-INPUT=()   # kde(3) 其余默认
-pty_in "bash /etc/nixos/install.sh menu" /tmp/t3.out '3' '' '' '' '' '' '' '' 'y'
+# 桌面 kde(3)，引导/主题等其余默认（新菜单顺序：引导→主题→桌面）
+INPUT=()   # 引导(回车=grub-uefi) 主题(回车=开) 桌面 kde(3) 其余默认
+pty_in "bash /etc/nixos/install.sh menu" /tmp/t3.out '' '' '3' '' '' '' '' '' '' 'y'
 grep -E "模块切换完成|✓|✗" /tmp/t3.out | head -5
 check "menu 切换到 kde"          '^[[:space:]]*\./modules/desktop/kde\.nix' /etc/nixos/configuration.nix
 check_not "menu 后 xfce 关闭"    '^[[:space:]]*[^#]*\./modules/desktop/xfce\.nix' /etc/nixos/configuration.nix
@@ -178,11 +205,13 @@ echo "========== 测试 4：install.sh update（同步代码+保留机器文件+
 # 更新前记录机器文件内容（v2 版本）
 BEFORE_HW=$(cat /etc/nixos/hardware-configuration.nix)
 BEFORE_PKG=$(cat /etc/nixos/host/packages.nix)
+BEFORE_GDEV=$(cat /etc/nixos/host/grub-device.nix 2>/dev/null || true)
 INPUT=()   # 不重新选择模块
 pty_in "bash /etc/nixos/install.sh update" /tmp/t4.out 'n'
 grep -E "系统更新完成|✓|✗" /tmp/t4.out | head -5
 [ "$(cat /etc/nixos/hardware-configuration.nix)" = "$BEFORE_HW" ] && ok "hardware-configuration.nix 被保留" || bad "hardware-configuration.nix 丢失/被覆盖"
 [ "$(cat /etc/nixos/host/packages.nix)" = "$BEFORE_PKG" ] && ok "host/packages.nix 被保留" || bad "host/packages.nix 丢失/被覆盖"
+[ "$(cat /etc/nixos/host/grub-device.nix 2>/dev/null || true)" = "$BEFORE_GDEV" ] && ok "host/grub-device.nix 被保留" || bad "host/grub-device.nix 丢失/被覆盖"
 [ -f /etc/nixos/.utnixos-pro-selection ] && ok "选择状态文件被保留" || bad "选择状态文件丢失"
 check "update 后重放选择 kde"    '^[[:space:]]*\./modules/desktop/kde\.nix' /etc/nixos/configuration.nix
 N=$(grep -c 'nixos-rebuild switch --flake /etc/nixos#reimilia' /tmp/stub.log)
@@ -219,10 +248,11 @@ pty_in "bash /tmp/alone/install.sh --rollback" /tmp/t6b.out '22'
 grep -q '回滚完成' /tmp/t6b.out && ok "curl|bash --rollback 保险回滚可用" || bad "引导回滚失败: $(tail -3 /tmp/t6b.out)"
 
 echo ""
-echo "========== 测试 7：auto 默认路由（live 环境 → 安装界面） =========="
-# BUG 回归：live 环境下 curl|bash 无参数时，即使 /mnt 还没挂载/生成硬件配置，
-# 也应当进入安装部署界面（而非管理面板）。live 的可靠标志是 nixos-install 在 PATH 上。
-rm -rf /mnt/etc                       # 清空 /mnt：模拟用户尚未挂载/生成硬件配置
+echo "========== 测试 7：auto 默认路由（live → 安装 / 已装 → 管理面板） =========="
+# BUG 回归（ut 打不开管理面板）：已装 NixOS 的 PATH 里同样有 nixos-install
+# （nixos-install-tools 是系统默认包），所以「nixos-install 在 PATH」不能作为 live 标志。
+# 正确判据：live = 无 /etc/nixos + 默认用户 nixos 存在；已装 = 存在 /etc/nixos。
+rm -rf /mnt/etc /etc/nixos             # 清空现场：模拟 live（无 /etc/nixos、/mnt 未挂载）
 export UTNIXOS_PRO_TEST=1             # 阻止 source 时自动执行 main
 # shellcheck disable=SC1091
 source /repo/script/main.sh
@@ -231,23 +261,35 @@ ok()   { PASS=$((PASS+1)); echo "  [PASS] $*"; }
 bad()  { FAIL=$((FAIL+1)); echo "  [FAIL] $*"; }
 cmd_install()   { echo "ROUTED_TO=INSTALL";   return; }
 cmd_dashboard() { echo "ROUTED_TO=DASHBOARD"; return; }
+
+# 场景 1：live ISO（无 /etc/nixos，nixos 用户存在，且 PATH 里仍有 nixos-install）→ 安装界面
+id nixos >/dev/null 2>&1 || useradd -M nixos
 ROUTE="$(main)"
 [ "$ROUTE" = "ROUTED_TO=INSTALL" ] \
-  && ok "live 环境（有 nixos-install，/mnt 未挂载）auto → 安装界面" \
+  && ok "live（无 /etc/nixos + nixos 用户，即使 PATH 有 nixos-install）auto → 安装界面" \
   || bad "live 环境 auto 路由错误: $ROUTE"
-# 对照组：无 nixos-install（模拟已装系统）→ 管理面板
-rm -f /usr/local/bin/nixos-install
+
+# 场景 2：已装系统（/etc/nixos 存在，PATH 里仍有 nixos-install！）→ 管理面板
+# 这是「ut 打不开管理面板」的核心回归用例
+mkdir -p /etc/nixos
 ROUTE="$(main)"
 [ "$ROUTE" = "ROUTED_TO=DASHBOARD" ] \
-  && ok "已装系统（无 nixos-install，/mnt 空）auto → 管理面板" \
+  && ok "已装系统（有 /etc/nixos，PATH 仍有 nixos-install）auto → 管理面板" \
   || bad "已装系统 auto 路由错误: $ROUTE"
+
+# 场景 3：已装系统上又挂载全新 /mnt 并生成硬件配置（重装）→ 安装界面
+mkdir -p /mnt/etc/nixos
+printf '{ fileSystems."/" = { device = "/dev/vda1"; fsType = "ext4"; }; }' \
+  > /mnt/etc/nixos/hardware-configuration.nix
+ROUTE="$(main)"
+[ "$ROUTE" = "ROUTED_TO=INSTALL" ] \
+  && ok "已装系统 + /mnt 新系统（重装）auto → 安装界面" \
+  || bad "重装场景 auto 路由错误: $ROUTE"
+
+# 清理现场：移除模拟的 /etc/nixos /mnt 与 nixos 用户
+rm -rf /etc/nixos /mnt/etc
+userdel nixos 2>/dev/null || true
 unset UTNIXOS_PRO_TEST
-# 恢复 stub（后续无测试依赖 nixos-install，但保持现场干净）
-cat > /usr/local/bin/nixos-install <<'STUB'
-#!/bin/bash
-echo "[stub] nixos-install $*" >> /tmp/stub.log
-STUB
-chmod +x /usr/local/bin/nixos-install
 
 echo ""
 echo "=========================================="

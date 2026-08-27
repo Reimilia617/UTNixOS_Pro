@@ -82,8 +82,8 @@ echo "============================================================"
 rm -rf /tmp/alone && mkdir -p /tmp/alone && cp /repo/install.sh /tmp/alone/install.sh
 # 清理上个测试残留，重新挂载 /mnt
 rm -f /tmp/stub.log; rm -rf /mnt/etc; mkdir -p /mnt/etc
-INPUT=()   # 全部默认 + 确认安装
-pty_in "bash /tmp/alone/install.sh install" /tmp/mA.out '' '' '' '' '' '' '' '' 'y'
+INPUT=()   # 全部默认 + 确认安装（新菜单顺序：引导→主题→桌面→…）
+pty_in "bash /tmp/alone/install.sh install" /tmp/mA.out '' '' '' '' '' '' '' '' '' 'y'
 echo "--- 输出片段 ---"
 grep -E "正在从 GitHub 获取|复用已拉取的代码|git clone|安装完成|✗|错误" /tmp/mA.out | head -10
 grep -q "正在从 GitHub 获取 UTNixOS_Pro 脚本" /tmp/mA.out \
@@ -93,7 +93,10 @@ CFG=/mnt/etc/nixos/configuration.nix
 [ -f /mnt/etc/nixos/.utnixos-pro-selection ] && ok "A: .utnixos-pro-selection 已生成" || bad "A: 状态文件未生成"
 [ -f /mnt/etc/nixos/hardware-configuration.nix ] && ok "A: hardware-configuration.nix 已生成" || bad "A: 硬件配置未生成"
 [ -f /mnt/etc/nixos/script/main.sh ] && ok "A: script/ 模块已随配置部署" || bad "A: script/ 未部署"
+[ -f /mnt/etc/nixos/host/grub-device.nix ] && ok "A: host/grub-device.nix 已部署" || bad "A: host/grub-device.nix 未部署"
 check "A: 桌面默认 xfce 启用" '^[[:space:]]*\./modules/desktop/xfce\.nix' "$CFG"
+check "A: webui 默认启用" '^[[:space:]]*\./modules/system/webui\.nix' "$CFG"
+check "A: GRUB 主题默认启用" '^[[:space:]]*\./modules/boot/grub-theme\.nix' "$CFG"
 grep -q 'nixos-install --flake /mnt/etc/nixos#reimilia' /tmp/stub.log \
   && ok "A: nixos-install 以 flake 调用" || bad "A: nixos-install 调用参数不符: $(grep nixos-install /tmp/stub.log)"
 grep -q 'nixos-generate-config --root /mnt' /tmp/stub.log \
@@ -107,8 +110,8 @@ rm -f /tmp/stub.log; rm -rf /mnt/etc; mkdir -p /mnt/etc
 rm -rf /tmp/methodB
 git clone -q "$UTNIXOS_PRO_GIT_URL" /tmp/methodB 2>&1 | tail -1
 [ -f /tmp/methodB/install.sh ] && ok "B: git clone 成功（install.sh 存在）" || bad "B: git clone 失败"
-INPUT=()   # 全部默认 + 确认安装
-pty_in "bash /tmp/methodB/install.sh install" /tmp/mB.out '' '' '' '' '' '' '' '' 'y'
+INPUT=()   # 全部默认 + 确认安装（新菜单顺序：引导→主题→桌面→…）
+pty_in "bash /tmp/methodB/install.sh install" /tmp/mB.out '' '' '' '' '' '' '' '' '' 'y'
 echo "--- 输出片段 ---"
 grep -E "复用已拉取的代码|git clone|安装完成|✗|错误" /tmp/mB.out | head -10
 grep -q "复用已拉取的代码" /tmp/mB.out \

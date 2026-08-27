@@ -147,6 +147,19 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px; }
 .chip.off { opacity: .65; }
 .chip.disabled { opacity: .35; cursor: not-allowed; }
 
+/* GRUB 附加项（主题开关 / BIOS 目标磁盘） */
+.grub-extra {
+  margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border);
+  border-radius: 8px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  font-size: 13px; color: var(--fg);
+}
+.grub-extra-item { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.grub-extra input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+.grub-extra input[type="text"] {
+  padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg3); color: var(--fg); outline: none; font-size: 13px;
+}
+
 /* ---------- 软件包 ---------- */
 .search-row { display: flex; gap: 10px; margin-bottom: 12px; }
 .search-row input, .search-row select {

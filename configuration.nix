@@ -13,7 +13,7 @@
     ./modules/system/zram.nix     # Memory ZSTD
     ./modules/system/fonts.nix     # Fonts(默认启用)
     ./modules/system/ut.nix     # ut命令(UTNixOS_Pro管理接口)
-    #./modules/system/webui.nix     # Web管理面板(默认关闭,见文件内说明)
+    ./modules/system/webui.nix     # Web管理面板(默认启用,http://127.0.0.1:8090)
     #./modules/system/nopwdtodesktop.nix     # Auto Login
     #./modules/system/vm-debug.nix     # VM调试(无头启动,默认关闭,见文件内说明)
     #./modules/system/secrets.nix     # sops-nix密钥管理(模板,默认关闭)
@@ -21,10 +21,11 @@
     #./modules/system/backup.nix     # restic定时备份(模板,默认关闭)
     #./modules/system/security.nix     # fail2ban安全(模板,默认关闭)
 
-    # Bootloader
-    ./modules/boot/grub.nix     # GRUB(BIOS+UEFI)
-    ./modules/boot/grub-theme.nix     # GRUB Themes(Reimu)
+    # Bootloader（用 `ut menu` / 安装菜单选择，GRUB 可选主题）
+    ./modules/boot/grub.nix     # GRUB(UEFI)
+    #./modules/boot/grub-bios.nix     # GRUB(BIOS/传统启动,目标磁盘见 host/grub-device.nix)
     #./modules/boot/systemd-boot.nix     #systemd-boot(UEFI-Only)
+    ./modules/boot/grub-theme.nix     # GRUB Themes(Reimu,可选)
 
     # Desktop
     #./modules/desktop/gnome.nix     #GNOME
@@ -69,6 +70,7 @@
 
     # 机器本地文件（由 Web 管理面板自动维护，勿删除）
     ./host/packages.nix     # Web 面板安装的软件包
+    ./host/grub-device.nix     # GRUB(BIOS) 引导设备(选中 grub-bios 时自动写入)
   ];
 
   # Firmware

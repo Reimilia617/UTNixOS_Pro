@@ -44,8 +44,9 @@
 - IBus + Rime 输入法（可选 Fcitx5，KDE 用户推荐选 Fcitx5 呢）
 - 将 ZSH 作为默认 SHELL（可选 Bash/Fish，用 `ut menu` 一键切换）
 - Home-Manager 管理：Oh My ZSH + Powerlevel10K + 开机名言彩蛋 + 声明式配置(git/ssh/fzf)
-- 使用 GRUB 作为引导加载器（可选 Systemd-boot，启动更快但不支持主题）
-- ——————默认启用东方主题，可前往 `configuration.nix` 中关闭
+- 使用 GRUB 作为引导加载器（UEFI / BIOS 传统启动可选；也可选 Systemd-boot，启动更快但不支持主题）
+- 安装/更换引导时先选「GRUB(UEFI) / GRUB(BIOS) / systemd-boot」，选 GRUB 再问要不要东方主题（默认开）
+- BIOS/MBR 启动时自动询问 GRUB 安装目标磁盘（如 /dev/sda），写入机器本地文件 `host/grub-device.nix`
 - 默认全英文环境，可选为中文环境
 - 模块化配置结构
 - Flake + Home-Manager（XDG 目录规范 + git/ssh/fzf 声明式配置）
@@ -74,7 +75,7 @@
    ```
    curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash
    ```
-   菜单里自由选择：桌面环境/引导加载器/语言/输入法/镜像源/Shell/系统模块/进阶模块，
+   菜单里自由选择：引导加载器（GRUB/UEFI、GRUB/BIOS、systemd-boot，GRUB 会再问要不要主题，BIOS 还会问目标磁盘）/桌面环境/语言/输入法/镜像源/Shell/系统模块/进阶模块，
    脚本会自动修改 configuration.nix（和 home-manager.nix）、生成硬件配置、执行 `nixos-install` 部署系统。
 4. 安装完成后 reboot，用 `reimilia / 123456` 登录，第一时间执行 `passwd` 修改密码！
 
@@ -140,7 +141,8 @@ sudo bash /etc/nixos/install.sh update     # 从GitHub同步最新代码 + 重�
 # 手动安装（不用脚本也行）
 
 1. 使用 cfdisk 分区（如果你喜欢用别的也可以）
-   - ⚠ 提示：最好是 UEFI+GPT，若是只能 BIOS 启动请前往 `modules/boot/grub.nix` 中手动将 `"nodev"` 修改为你的磁盘，例如 `"/dev/sda"`
+   - ⚠ 提示：最好是 UEFI+GPT；若是只能 BIOS 启动，用 `ut menu` 选择「GRUB(BIOS)」并按提示输入目标磁盘
+     （脚本会写入 `host/grub-device.nix` 的 `boot.loader.grub.device`，无需再手动改模块）
    - Tips: 如果你是 UEFI 启动可选择 Systemd-boot，启动速度更快，但是不支持主题
 2. 格式化分区并挂载（这部分内容不多叙述）
 3. 使用 `nixos-generate-config --root /mnt` 获取配置文件，配置文件存储在 `"/你挂载的目录/etc/nixos/"` 下
@@ -172,10 +174,10 @@ nixos-install --option substituters "https://mirrors.ustc.edu.cn/nix-channels/st
 # 常用模块速查
 
 - 桌面：`modules/desktop/*.nix`（默认 xfce，其他取消注释即可切换）
-- 引导：`modules/boot/{grub,systemd-boot}.nix`（grub 带东方主题）
+- 引导：`modules/boot/{grub,grub-bios,systemd-boot}.nix`（GRUB 主题 `grub-theme.nix` 可选；BIOS 目标磁盘在 `host/grub-device.nix`）
 - 输入法：`modules/input/{ibus,fcitx5}.nix`
 - 语言：`modules/locale/{en_US,zh_CN}.nix`
-- 镜像：`modules/mirrors/{ustc,tuna,nju}.nix`
+- 镜像：`modules/mirrors/{ustc,tuna,nju,sjtu}.nix`（中科大 / 清华 / 南大 / 上海交大）
 - 系统优化：`modules/system/*.nix`（auto-update/clean/zram/nix-command/fonts/nopwdtodesktop/vm-debug）
 
 ---
@@ -249,24 +251,19 @@ curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.s
 
 ---
 
-# Web 管理面板（可选功能）
+# Web 管理面板（默认启用）
 
 UTNixOS_Pro 自带一个 **Web 管理面板**：浏览器里完成原本 `ut` 终端菜单能做的所有事。
-
-## 启用
-
-```
-ut menu    # 系统模块里勾选 webui，确认并重建
-# 或者手动取消 configuration.nix 中 ./modules/system/webui.nix 的注释后重建
-```
-
-重建完成后，**systemd 会自动启动**面板，浏览器打开：
+**新装系统默认开启**，`systemd` 会自动启动面板，浏览器打开：
 
 ```
 http://127.0.0.1:8090
 ```
 
 用**系统用户名和密码**登录（PAM 认证，与终端登录一致；只允许 `wheel` 组用户，可在模块里改 `allowedGroup`）。
+
+> 如果之前装的旧系统没有面板，用 `ut menu` 勾选系统模块里的 webui（或手动取消
+> `configuration.nix` 中 `./modules/system/webui.nix` 的注释）后重建即可。
 
 ## 功能一览
 
@@ -302,7 +299,7 @@ services.utnixos-pro-webui = {
 ```
 
 源码在 `webui/` 目录（Go + 原生 JS，零第三方依赖），可单独构建：`nix build .#webui`。
-`ut update` / Web 面板的「更新配置」会自动保留 `host/packages.nix` 和 `hardware-configuration.nix`。
+`ut update` / Web 面板的「更新配置」会自动保留 `host/packages.nix`、`host/grub-device.nix` 和 `hardware-configuration.nix`。
 
 ---
 
@@ -383,6 +380,28 @@ script/
 ---
 
 # 更新日志
+
+## Ver2.6（三个重要 Bug 修复）
+
+- 1. **BIOS 启动无法安装引导加载程序**：引导选择改为「先选引导加载器」——
+  GRUB 分为 **UEFI** 与 **BIOS** 两种，另有 systemd-boot；选了 GRUB 之后再问要不要主题。
+  - 新增 `modules/boot/grub-bios.nix`（BIOS/MBR 版 GRUB）
+  - BIOS 引导会询问目标磁盘（如 `/dev/sda`），写入机器本地文件 `host/grub-device.nix`
+    （`ut update` 自动保留），不再需要手动改 `grub.nix` 里的 `"nodev"`
+- 2. **进入系统后 `ut` 打不开管理面板**：live 环境判定逻辑错误——
+  已装 NixOS 的 PATH 里同样有 `nixos-install`（nixos-install-tools 是系统默认包），
+  导致 `ut` 被误判为 live 环境而进入安装界面。现改为：`/etc/nixos` 存在即已装系统，
+  live ISO 的判据是无 `/etc/nixos` 且存在默认用户 `nixos`。
+- 3. **Web 管理面板无法使用**：
+  - 修复 `webui/default.nix`：main 包在 `cmd/webui`，但 buildGoModule 默认只构建模块根目录，
+    导致 `nix build .#webui` 构建失败、开启 webui 后整个 `nixos-rebuild` 失败。
+    显式声明 `subPackages = [ "./cmd/webui" ]`，产物 `bin/webui` 与 systemd 服务路径对齐。
+  - Web 面板改为**默认启用**（系统模块默认勾选 + configuration.nix 默认打开），装完即可访问
+    `http://127.0.0.1:8090`
+  - KVM 启动冒烟测试新增面板服务/健康检查断言，CI 会真实构建并启动面板验证
+- 4. Web 面板模块页新增：GRUB 主题开关、GRUB(BIOS) 目标磁盘输入（与 TUI 共用状态文件）
+- 5. 新增上海交大镜像源（`sjtu`，`https://mirror.sjtu.edu.cn/nix-channels/store`），
+  菜单与 Web 面板均可见，安装/更新脚本的 substituters 同步支持
 
 ## Ver1.1
 
