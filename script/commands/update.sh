@@ -26,6 +26,7 @@ cmd_update() {
     if [[ ! -f "$TARGET_DIR/flake.nix" || ! -f "$TARGET_DIR/install.sh" ]]; then
       warn upd_incomplete
     fi
+    chmod +x "$TARGET_DIR/install.sh" 2>/dev/null || true   # 可执行位保险
     # 恢复机器本地文件（注意备份时是 $bk/packages.nix，不是 $bk/host/）
     mkdir -p "$TARGET_DIR/host"
     cp -f "$bk/hardware-configuration.nix" "$TARGET_DIR/" 2>/dev/null || true
@@ -65,6 +66,7 @@ cmd_update() {
       mv "$old_dir" "$TARGET_DIR"
       die upd_swap_fail
     fi
+    chmod +x "$TARGET_DIR/install.sh" 2>/dev/null || true   # 可执行位保险
     ok upd_code_ok "$old_dir"
   fi
 

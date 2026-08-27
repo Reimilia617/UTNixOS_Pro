@@ -452,6 +452,13 @@ script/
 - 12. 修复入口三合一：管理面板菜单新增「7) 一键修复」；`ut` 自动检测到
   /etc/nixos 损坏（缺 flake.nix）时自动进入修复；curl|bash 传参兼容
   `bash -s -- repair` 参数落在 $0/$1 两种 sh 实现
+- 13. 修复两个「ut 崩 / 8090 死」的深层根因：
+  - shell 别名 `ut = "sudo /etc/nixos/install.sh"`（fish/zsh/bash）会**覆盖**系统的
+    `ut` 二进制，install.sh 可执行位丢失时直接执行报 command not found——
+    别名统一改为 `sudo bash /etc/nixos/install.sh`
+  - 状态文件 v2 迁移：旧状态（webui 默认开启之前）重放时自动补上 webui，
+    不再把默认启用的面板注释掉
+  - 安装/更新/修复所有部署路径补 `chmod +x install.sh` 可执行位保险
 
 ## Ver1.1
 

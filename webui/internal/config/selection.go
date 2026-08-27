@@ -260,6 +260,18 @@ func (e *Editor) LoadState() State {
 		st.Boot = "grub-uefi"
 		st.GrubTheme = false
 	}
+	// 状态迁移：v1（webui 默认开启之前的格式）的 SYSTEM_MODULES 里没有 webui，
+	// 重放时补上，避免旧状态把默认启用的 webui 注释掉（8090 永远起不来）。
+	// 必须在 SYSTEM_MODULES 解析之后执行。
+	webuiOn := false
+	for _, m := range st.SystemModules {
+		if m == "webui" {
+			webuiOn = true
+		}
+	}
+	if vals["STATE_VERSION"] != "2" && !webuiOn {
+		st.SystemModules = append(st.SystemModules, "webui")
+	}
 	if st.GrubDevice == "" {
 		st.GrubDevice = "/dev/sda"
 	}
@@ -275,8 +287,10 @@ func splitFields(s string) []string {
 }
 
 // SaveState 把选择写入 .utnixos-pro-selection（与 TUI 同格式，可互相读取）。
+// STATE_VERSION=2：webui 默认启用之后的格式；旧状态（无版本号）加载时补上 webui。
 func (e *Editor) SaveState(st State) error {
 	content := fmt.Sprintf(`# UTNixOS_Pro 模块选择状态（由 Web 管理面板 / install.sh 生成，可手动修改后重新运行 update）
+STATE_VERSION=2
 DESKTOP=%s
 BOOT=%s
 GRUB_THEME=%s

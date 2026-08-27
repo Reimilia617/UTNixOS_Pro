@@ -71,6 +71,8 @@ cmd_repair() {
     [[ "$have_bk" == "1" ]] && cp -a "$bk" "$TARGET_DIR" 2>/dev/null
     die repair_swap_fail
   fi
+  # 可执行位保险：某些部署方式会丢 mode，install.sh 不可执行会让 sudo 直呼失败
+  chmod +x "$TARGET_DIR/install.sh" 2>/dev/null || true
   mkdir -p "$TARGET_DIR/host"
   cp -f "$mf/hardware-configuration.nix" "$TARGET_DIR/" 2>/dev/null || true
   cp -f "$mf/packages.nix" "$TARGET_DIR/host/" 2>/dev/null || true

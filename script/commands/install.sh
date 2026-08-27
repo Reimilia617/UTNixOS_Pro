@@ -66,6 +66,7 @@ cmd_install() {
   local rsync_opts=(-a --exclude='hardware-configuration.nix')
   [[ "${NO_APPLE:-0}" == "1" ]] && rsync_opts+=(--exclude='media/badapple.mp4')
   rsync "${rsync_opts[@]}" "$src/" "$TARGET_DIR/"
+  chmod +x "$TARGET_DIR/install.sh" 2>/dev/null || true   # 可执行位保险（tarball 部署可能丢 mode）
   if [[ -d "$TARGET_DIR/.git" ]]; then
     git -C "$TARGET_DIR" update-index --skip-worktree hardware-configuration.nix 2>/dev/null || true
   fi
