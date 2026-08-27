@@ -67,10 +67,13 @@
 2. 挂载分区：
    ```
    mount /dev/你的根分区 /mnt
-   mkdir -p /mnt/boot/efi
-   mount /dev/你的ESP分区 /mnt/boot/efi      # UEFI
-   # 或 mount /dev/你的boot分区 /mnt/boot    # BIOS
+   mount /dev/你的ESP分区 /mnt/boot      # UEFI：NixOS 默认 GRUB/systemd-boot 在 /boot 找 ESP
+   # 或 mount /dev/你的boot分区 /mnt/boot # BIOS 老机器
    ```
+   > ⚠ 注意：**不要**把 ESP 挂到 `/mnt/boot/efi`——那是 Ubuntu 等发行版的做法。
+   > NixOS 的 GRUB/systemd-boot 默认 EFI 目录是 `/boot`（`boot.loader.efi.efiSysMountPoint`，
+   > 默认值 `/boot`）。挂到 `/boot/efi` 会导致引导程序找不到 ESP 而安装失败；
+   > 除非你在配置里显式设置 `boot.loader.efi.efiSysMountPoint = "/boot/efi"`。
 3. 一条命令弹出交互式菜单：
    ```
    curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash
@@ -144,7 +147,7 @@ sudo bash /etc/nixos/install.sh update     # 从GitHub同步最新代码 + 重�
    - ⚠ 提示：最好是 UEFI+GPT；若是只能 BIOS 启动，用 `ut menu` 选择「GRUB(BIOS)」并按提示输入目标磁盘
      （脚本会写入 `host/grub-device.nix` 的 `boot.loader.grub.device`，无需再手动改模块）
    - Tips: 如果你是 UEFI 启动可选择 Systemd-boot，启动速度更快，但是不支持主题
-2. 格式化分区并挂载（这部分内容不多叙述）
+2. 格式化分区并挂载（UEFI 记得把 ESP 挂到 `/mnt/boot`，别挂 `/mnt/boot/efi`，见上方「全新安装」的注意事项）
 3. 使用 `nixos-generate-config --root /mnt` 获取配置文件，配置文件存储在 `"/你挂载的目录/etc/nixos/"` 下
 4. 使用 cp 命令替换除了 `hardware-configuration.nix` 外的所有文件
    - ⚠ 仓库自带的 `hardware-configuration.nix` 只是供评测/CI 用的【示例】（面向 QEMU 虚拟机），千万别直接用于真实机器！
@@ -402,6 +405,9 @@ script/
 - 4. Web 面板模块页新增：GRUB 主题开关、GRUB(BIOS) 目标磁盘输入（与 TUI 共用状态文件）
 - 5. 新增上海交大镜像源（`sjtu`，`https://mirror.sjtu.edu.cn/nix-channels/store`），
   菜单与 Web 面板均可见，安装/更新脚本的 substituters 同步支持
+- 6. 修正 ESP 挂载点误导：教程改为把 ESP 挂到 `/mnt/boot`（NixOS 默认 GRUB/systemd-boot
+  的 EFI 目录是 `/boot`，`/boot/efi` 是 Ubuntu 习惯会导致引导装不上）；
+  安装脚本新增专门警告：检测到 ESP 挂在 `/boot/efi` 时会提示改挂 `/boot`
 
 ## Ver1.1
 

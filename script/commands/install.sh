@@ -10,8 +10,12 @@ cmd_install() {
   say ""
   info inst_check_mount
   mountpoint -q "$MOUNT_ROOT" || die inst_mount_missing "$MOUNT_ROOT" "$MOUNT_ROOT"
-  if mountpoint -q "$MOUNT_ROOT/boot/efi" || mountpoint -q "$MOUNT_ROOT/boot"; then
+  # NixOS 默认 GRUB/systemd-boot 的 EFI 目录是 /boot（efiSysMountPoint 默认值）；
+  # 挂到 /boot/efi（Ubuntu 习惯）会导致引导程序找不到 ESP，这里单独给出警告
+  if mountpoint -q "$MOUNT_ROOT/boot"; then
     ok inst_boot_mounted
+  elif mountpoint -q "$MOUNT_ROOT/boot/efi"; then
+    warn inst_boot_efi_misplaced "$MOUNT_ROOT" "$MOUNT_ROOT"
   else
     warn inst_boot_warn "$MOUNT_ROOT" "$MOUNT_ROOT"
   fi
