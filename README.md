@@ -470,6 +470,9 @@ script/
   现改为默认 `true`（导入即启用），想关闭可显式设 `enable = false`
 - 15. `ut update` 与 `repair` 定位理顺：update 发现 /etc/nixos 损坏（缺 flake.nix）
   时自动切换为一键修复，不再报 noflake 死掉
+- 16. 修掉 webui 构建的求值错误：`installPhase` 里 `cd "${modRoot}"` 引用了
+  buildGoModule 内部参数（undefined variable `modRoot`），webui 启用后一求值就崩。
+  改为标准 `subPackages` + `postInstall` 兜底产物名（保证 `$out/bin/webui`）
 
 ## Ver1.1
 

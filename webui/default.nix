@@ -10,17 +10,19 @@ buildGoModule {
   src = ./.;
 
   # main 包在 cmd/webui：buildGoModule 默认只构建模块根目录（.），根目录没有
-  # main 包会导致 `go install .` 报「no Go files」构建失败。显式声明子包，
-  # 并用 installPhase 固定产物为 $out/bin/webui（不同 nixpkgs 版本对子包产物
-  # 的命名规则不一致——有的按 pname 命名，有的按子包名——这里显式 go install
-  # 与 modules/system/webui.nix 的 ExecStart（${package}/bin/webui）对齐）。
+  # main 包会导致 `go install .` 报「no Go files」构建失败，必须显式声明子包。
+  # 注意：不要在这里用 installPhase 覆盖 + `cd "${modRoot}"` —— modRoot 是
+  # buildGoModule 内部参数，不在本 derivation 作用域里，会直接求值报错
+  # （undefined variable `modRoot`）。
   subPackages = [ "./cmd/webui" ];
 
-  installPhase = ''
-    runHook preInstall
-    cd "${modRoot}"
-    GOBIN="$out/bin" go install -trimpath -ldflags="-s -w" ./cmd/webui
-    runHook postInstall
+  # 产物名保险：不同 nixpkgs 版本对子包产物的命名不同（有的按 pname 命名，
+  # 有的按子包名），postInstall 统一确保存在 $out/bin/webui，
+  # 与 modules/system/webui.nix 的 ExecStart（${package}/bin/webui）对齐。
+  postInstall = ''
+    if [[ ! -x "$out/bin/webui" ]]; then
+      mv -f "$out/bin/${pname}" "$out/bin/webui" 2>/dev/null || true
+    fi
   '';
 
   # 无第三方 Go 依赖，不需要 vendorHash
