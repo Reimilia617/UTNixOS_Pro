@@ -19,9 +19,11 @@ buildGoModule {
   # 产物名保险：不同 nixpkgs 版本对子包产物的命名不同（有的按 pname 命名，
   # 有的按子包名），postInstall 统一确保存在 $out/bin/webui，
   # 与 modules/system/webui.nix 的 ExecStart（${package}/bin/webui）对齐。
+  # 注意：这里不能写 "${pname}"——pname 只是本 attrset 的属性名，不是作用域
+  # 变量，插值会报 undefined variable `pname`（与之前的 modRoot 同款错误）。
   postInstall = ''
     if [[ ! -x "$out/bin/webui" ]]; then
-      mv -f "$out/bin/${pname}" "$out/bin/webui" 2>/dev/null || true
+      mv -f "$out/bin/utnixos-pro-webui" "$out/bin/webui" 2>/dev/null || true
     fi
   '';
 
