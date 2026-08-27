@@ -459,6 +459,10 @@ script/
   - 状态文件 v2 迁移：旧状态（webui 默认开启之前）重放时自动补上 webui，
     不再把默认启用的面板注释掉
   - 安装/更新/修复所有部署路径补 `chmod +x install.sh` 可执行位保险
+- 14. **修掉 webui 最大的隐藏 Bug**：`services.utnixos-pro-webui.enable` 之前默认
+  `false`，且全仓库没有任何地方把它设为 `true`——configuration.nix 取消注释只是
+  导入模块，服务永远不会被创建（rebuild 成功但永远 inactive、8090 永远不通）。
+  现改为默认 `true`（导入即启用），想关闭可显式设 `enable = false`
 
 ## Ver1.1
 

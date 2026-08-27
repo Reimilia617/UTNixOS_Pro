@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 
-# UTNixOS_Pro Web 管理面板（默认关闭，用 `ut menu` 或 Web 面板自身开启）
+# UTNixOS_Pro Web 管理面板（模块被导入即启用；设 services.utnixos-pro-webui.enable = false 可关闭）
 #
 # 功能：系统用户名/密码（PAM）登录，浏览器访问
 #   http://127.0.0.1:8090   （默认仅本机，不会暴露到公网）
@@ -19,7 +19,14 @@ let
 in
 {
   options.services."utnixos-pro-webui" = {
-    enable = lib.mkEnableOption "UTNixOS_Pro Web 管理面板";
+    # 注意：默认 true（导入即启用）。之前默认 false 且全仓库没有任何地方把它
+    # 设为 true，导致即便 configuration.nix 取消注释，服务也永远不会被创建——
+    # rebuild 成功但 systemctl 永远 inactive、8090 永远不通。
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "是否启用 UTNixOS_Pro Web 管理面板（模块被导入即启用；设 false 可关闭）。";
+    };
 
     port = lib.mkOption {
       type = lib.types.port;
