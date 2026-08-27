@@ -44,7 +44,7 @@ cmd_repair() {
 
   # ---------- 3. 获取最新源码：优先复用引导器/脚本自身拉取的（SCRIPT_SRC），否则重新拉取 ----------
   local src=""
-  if [[ -f "${SCRIPT_SRC:-}/flake.nix" && -f "${SCRIPT_SRC:-}/script/main.sh" ]]; then
+  if [[ -f "${SCRIPT_SRC:-}/flake.nix" && -f "${SCRIPT_SRC:-}/install.sh" && -f "${SCRIPT_SRC:-}/script/main.sh" ]]; then
     src="$SCRIPT_SRC"
     ok repair_reuse "$src"
   else
