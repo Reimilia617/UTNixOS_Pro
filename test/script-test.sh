@@ -248,6 +248,29 @@ pty_in "bash /tmp/alone/install.sh --rollback" /tmp/t6b.out '22'
 grep -q '回滚完成' /tmp/t6b.out && ok "curl|bash --rollback 保险回滚可用" || bad "引导回滚失败: $(tail -3 /tmp/t6b.out)"
 
 echo ""
+echo "========== 测试 6.5：install.sh repair（一键修复 /etc/nixos） =========="
+# BUG 回归（/etc/nixos 被搞坏：缺 flake.nix/install.sh → ut 崩、面板 noflake）：
+# repair 应保留机器文件、拉取最新代码重建 /etc/nixos 并触发 nixos-rebuild。
+rm -f /etc/nixos/flake.nix /etc/nixos/install.sh /etc/nixos/script/main.sh   # 模拟损坏
+echo '# MACHINE hardware' > /etc/nixos/hardware-configuration.nix
+printf '# machine packages\nhtop\n' > /etc/nixos/host/packages.nix
+grep -q '^DESKTOP=' /etc/nixos/.utnixos-pro-selection 2>/dev/null || echo 'DESKTOP=kde' >> /etc/nixos/.utnixos-pro-selection
+INPUT=()   # 重建确认（回车=是）
+pty_in "bash /repo/install.sh repair" /tmp/t65.out 'y'
+grep -E "一键修复|修复完成|✓|✗" /tmp/t65.out | head -6
+[ -f /etc/nixos/flake.nix ] && ok "repair 恢复 flake.nix" || bad "flake.nix 未恢复"
+[ -f /etc/nixos/install.sh ] && ok "repair 恢复 install.sh" || bad "install.sh 未恢复"
+[ -f /etc/nixos/script/main.sh ] && ok "repair 恢复 script/main.sh" || bad "script/ 未恢复"
+[ "$(cat /etc/nixos/hardware-configuration.nix)" = '# MACHINE hardware' ] \
+  && ok "repair 保留 hardware-configuration.nix" || bad "硬件配置丢失"
+grep -q 'htop' /etc/nixos/host/packages.nix && ok "repair 保留 host/packages.nix" || bad "packages.nix 丢失"
+grep -q '^DESKTOP=kde$' /etc/nixos/.utnixos-pro-selection && ok "repair 保留选择状态" || bad "选择状态丢失"
+grep -q 'nixos-rebuild switch --flake /etc/nixos#reimilia' /tmp/stub.log \
+  && ok "repair 触发 nixos-rebuild" || bad "repair 未触发重建"
+# 备份目录应存在（/etc/nixos.repair-*）
+ls -d /etc/nixos.repair-* >/dev/null 2>&1 && ok "repair 生成备份目录" || bad "repair 未备份旧配置"
+
+echo ""
 echo "========== 测试 7：auto 默认路由（live → 安装 / 已装 → 管理面板） =========="
 # BUG 回归（ut 打不开管理面板）：已装 NixOS 的 PATH 里同样有 nixos-install
 # （nixos-install-tools 是系统默认包），所以「nixos-install 在 PATH」不能作为 live 标志。

@@ -50,6 +50,7 @@ declare -A L10N_EN=(
   [help_install_cmd]="  install.sh install            # fresh install (NixOS live env)"
   [help_update]="  install.sh update             # update system (sync latest code + rebuild)"
   [help_menu]="  install.sh menu               # select/change modules (desktop, shell, etc.)"
+  [help_repair]="  install.sh repair            # one-click repair: keep machine config, pull latest code, rebuild /etc/nixos"
   [help_rollback]="  install.sh rollback           # system rollback (--rollback is a synonym)"
   [help_no_apple]="  --no-apple                    extra flag: skip downloading/deploying badapple.mp4 (easter egg unavailable)"
   [help_ut]="  the ut command (built into the installed system) is equivalent to sudo install.sh"
@@ -199,6 +200,21 @@ declare -A L10N_EN=(
   [roll_activate]="Activating that generation ..."
   [roll_done]="Rollback complete! If you still have boot issues, choose another generation in the GRUB menu at reboot"
 
+  # commands/repair.sh 一键修复
+  [repair_root]="Repair requires root; use: sudo bash install.sh repair (or: curl -L <install.sh> | sudo bash -s -- repair)"
+  [repair_start]="One-click repair: rebuilding /etc/nixos with the latest code (machine config preserved)..."
+  [repair_backup]="Existing config backed up to %s"
+  [repair_reuse]="Using already-fetched latest code: %s"
+  [repair_fetch]="Fetching latest code from GitHub..."
+  [repair_fetch_fail]="Failed to fetch the latest code; /etc/nixos was NOT modified (previous config is intact)"
+  [repair_no_hw]="hardware-configuration.nix not found in the backup; regenerating it for this machine..."
+  [repair_no_hw_fail]="Warning: failed to regenerate hardware-configuration.nix; you may need to run nixos-generate-config manually"
+  [repair_swap_fail]="Failed to rebuild /etc/nixos; the previous config was restored"
+  [repair_ready]="Config repaired. Ready to rebuild."
+  [repair_confirm]="Rebuild the system now (nixos-rebuild switch)? [Y/n] "
+  [repair_skip]="Skipped rebuild. Run it later: sudo nixos-rebuild switch --flake /etc/nixos#reimilia"
+  [repair_done]="Repair complete! ut / Web panel should work now."
+
   # commands/update.sh 更新配置
   [upd_root]="Update mode requires root; use: sudo bash install.sh update"
   [upd_sync]="Syncing latest code from GitHub..."
@@ -231,6 +247,7 @@ declare -A L10N_ZH=(
   [help_install_cmd]="  install.sh install            # 全新安装（NixOS live 环境）"
   [help_update]="  install.sh update             # 更新系统（同步最新代码并重建）"
   [help_menu]="  install.sh menu               # 选择/更换模块（换桌面、Shell 等）"
+  [help_repair]="  install.sh repair            # 一键修复：保留机器配置，拉取最新代码重建 /etc/nixos 并重建系统"
   [help_rollback]="  install.sh rollback           # 系统回滚（--rollback 同义）"
   [help_no_apple]="  --no-apple                    附加参数：不下载/不部署 badapple.mp4（彩蛋将不可用）"
   [help_ut]="  ut 命令（安装后系统内置）等价于 sudo install.sh"
@@ -379,6 +396,21 @@ declare -A L10N_ZH=(
   [roll_switch_gen]="切换系统 profile 到 generation %s ..."
   [roll_activate]="激活该 generation ..."
   [roll_done]="回滚完成！如果引导还有问题，重启时可以在 GRUB 菜单里选择其他 generation"
+
+  # commands/repair.sh 一键修复
+  [repair_root]="修复需要 root，请用：sudo bash install.sh repair（或：curl -L <install.sh> | sudo bash -s -- repair）"
+  [repair_start]="一键修复：用最新代码重建 /etc/nixos（保留机器配置）..."
+  [repair_backup]="现有配置已备份到 %s"
+  [repair_reuse]="复用已拉取的最新代码：%s"
+  [repair_fetch]="正在从 GitHub 拉取最新代码..."
+  [repair_fetch_fail]="拉取最新代码失败，/etc/nixos 未被修改（原配置完好）"
+  [repair_no_hw]="备份里没有 hardware-configuration.nix，正在为本机重新生成..."
+  [repair_no_hw_fail]="警告：生成 hardware-configuration.nix 失败，可能需要手动执行 nixos-generate-config"
+  [repair_swap_fail]="重建 /etc/nixos 失败，已回滚到原配置"
+  [repair_ready]="配置已修复，准备重建系统。"
+  [repair_confirm]="现在重建系统（nixos-rebuild switch）？[Y/n] "
+  [repair_skip]="已跳过重建，稍后执行：sudo nixos-rebuild switch --flake /etc/nixos#reimilia"
+  [repair_done]="修复完成！ut / Web 面板应该能正常用了。"
 
   # commands/update.sh 更新配置
   [upd_root]="更新模式需要 root，请用：sudo bash install.sh update"

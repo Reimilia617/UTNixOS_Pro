@@ -135,7 +135,18 @@ ut                    # 打开管理面板（等价于 sudo install.sh）
 ut update          # 更新配置（同步代码+重建）
 ut menu            # 只换模块（比如换桌面/Shell）
 ut rollback        # 系统回滚
+ut repair          # 一键修复：/etc/nixos 坏了（缺 flake.nix/install.sh，ut 崩）时，
+                   # 保留机器配置，拉取最新代码重建 /etc/nixos 并重建系统
 ```
+
+> 如果 `/etc/nixos` 坏到连 `ut` 都跑不了，直接用 curl 拉脚本修复（不需要 /etc/nixos 完好）：
+>
+> ```
+> curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | sudo bash -s -- repair
+> ```
+>
+> 修复会先全量备份 `/etc/nixos` 到 `/etc/nixos.repair-<时间戳>`，并保留
+> `hardware-configuration.nix` / `host/packages.nix` / `host/grub-device.nix` / 模块选择状态。
 
 ---
 
@@ -430,6 +441,11 @@ script/
   自动给 `nixos-install` 加 `--option proxy`（store 闭包下载也走代理）
 - 9. 引导器 fetch 阶段修复「卡死」：git clone/curl 显式透传代理环境变量、
   低速 30 秒自动中止、curl 加连接/总超时、失败时提示先 export 代理或加 `--no-apple`
+- 10. 新增 `ut repair` / `curl ... install.sh | sudo bash -s -- repair` 一键修复：
+  /etc/nixos 被搞坏（缺 flake.nix/install.sh）时，保留机器配置、拉取最新代码
+  重建 /etc/nixos 并重建系统；先全量备份、失败自动回滚
+- 11. `ut update` 加固：tarball 分支下载后强制校验完整性（缺 flake.nix 拒绝替换）、
+  git 分支 reset 后校验、替换失败自动回滚——杜绝「/etc/nixos 变成残缺目录」
 
 ## Ver1.1
 

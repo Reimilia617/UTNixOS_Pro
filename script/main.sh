@@ -69,6 +69,7 @@ main() {
     update)   cmd_update ;;
     menu)     cmd_menu ;;
     rollback|--rollback|-r) cmd_rollback ;;
+    repair|--repair) cmd_repair ;;
     panel|dash|dashboard) cmd_dashboard ;;
     auto)
       # 自动判断：
@@ -89,6 +90,7 @@ main() {
       say help_install_cmd
       say help_update
       say help_menu
+      say help_repair
       say help_rollback
       say ""
       say help_no_apple
