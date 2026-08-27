@@ -219,6 +219,7 @@ declare -A L10N_EN=(
 
   # commands/update.sh 更新配置
   [upd_root]="Update mode requires root; use: sudo bash install.sh update"
+  [upd_noflake_repair]="/etc/nixos has no flake.nix (config missing/broken); switching to one-click repair..."
   [upd_sync]="Syncing latest code from GitHub..."
   [upd_fetch_fail]="git fetch failed (network issue?), will use the existing local code"
   [upd_reset_fail]="git reset failed, continuing with the existing code"
@@ -418,6 +419,7 @@ declare -A L10N_ZH=(
 
   # commands/update.sh 更新配置
   [upd_root]="更新模式需要 root，请用：sudo bash install.sh update"
+  [upd_noflake_repair]="/etc/nixos 下没有 flake.nix（配置缺失/损坏），自动切换为一键修复..."
   [upd_sync]="从 GitHub 同步最新代码..."
   [upd_fetch_fail]="git fetch 失败（网络问题？），将使用本地已有代码"
   [upd_reset_fail]="git reset 失败，继续使用现有代码"

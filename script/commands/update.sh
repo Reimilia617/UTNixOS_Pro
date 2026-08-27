@@ -7,7 +7,13 @@ cmd_update() {
   [[ $EUID -eq 0 ]] || die upd_root
 
   TARGET_DIR="$INSTALL_DIR"
-  [[ -f "$TARGET_DIR/flake.nix" ]] || die noflake
+  # 配置损坏（缺 flake.nix）时自动切换为一键修复，而不是报 noflake 死掉：
+  # update 定位是「配置完好时的增量同步」，repair 定位是「损坏时的全量重建」。
+  if [[ ! -f "$TARGET_DIR/flake.nix" ]]; then
+    warn upd_noflake_repair
+    cmd_repair
+    return 0
+  fi
   cd "$TARGET_DIR"
 
   load_state

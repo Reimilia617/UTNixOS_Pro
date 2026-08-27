@@ -141,6 +141,11 @@ ut repair          # 一键修复：/etc/nixos 坏了（缺 flake.nix/install.sh
 
 > 修复入口不用记参数：管理面板菜单里有「7) 一键修复」；而且 `ut` 检测到
 > `/etc/nixos` 损坏（缺 flake.nix）时会**自动进入修复**。
+>
+> **「更新配置」和「一键修复」的区别**：
+> - `ut update`（菜单 4）＝ **配置完好时**的常规升级：增量同步最新代码并重建。
+> - `ut repair`（菜单 7）＝ **配置损坏/丢失时**的全量重建：备份 + 恢复机器文件 + 拉最新代码。
+> - `ut update` 发现配置损坏时会**自动切换到修复**，不会卡死报错。
 
 > 如果 `/etc/nixos` 坏到连 `ut` 都跑不了，直接用 curl 拉脚本修复（不需要 /etc/nixos 完好）：
 >
@@ -463,6 +468,8 @@ script/
   `false`，且全仓库没有任何地方把它设为 `true`——configuration.nix 取消注释只是
   导入模块，服务永远不会被创建（rebuild 成功但永远 inactive、8090 永远不通）。
   现改为默认 `true`（导入即启用），想关闭可显式设 `enable = false`
+- 15. `ut update` 与 `repair` 定位理顺：update 发现 /etc/nixos 损坏（缺 flake.nix）
+  时自动切换为一键修复，不再报 noflake 死掉
 
 ## Ver1.1
 
