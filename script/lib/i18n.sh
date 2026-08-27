@@ -216,7 +216,9 @@ declare -A L10N_EN=(
   [repair_ready]="Config repaired. Ready to rebuild."
   [repair_confirm]="Rebuild the system now (nixos-rebuild switch)? [Y/n] "
   [repair_skip]="Skipped rebuild. Run it later: sudo nixos-rebuild switch --flake /etc/nixos#reimilia"
-  [repair_done]="Repair complete! ut / Web panel should work now."
+  [repair_done]="Repair complete! Please verify ut and the web panel work"
+  [repair_webui_active]="Web panel service (utnixos-pro-webui) is running ✓"
+  [repair_webui_inactive]="Web panel service is NOT running; check: systemctl status utnixos-pro-webui / journalctl -u utnixos-pro-webui -n 30"
 
   # commands/update.sh 更新配置
   [upd_root]="Update mode requires root; use: sudo bash install.sh update"
@@ -417,7 +419,9 @@ declare -A L10N_ZH=(
   [repair_ready]="配置已修复，准备重建系统。"
   [repair_confirm]="现在重建系统（nixos-rebuild switch）？[Y/n] "
   [repair_skip]="已跳过重建，稍后执行：sudo nixos-rebuild switch --flake /etc/nixos#reimilia"
-  [repair_done]="修复完成！ut / Web 面板应该能正常用了。"
+  [repair_done]="修复完成！请自行验证 ut 和 Web 面板是否正常"
+  [repair_webui_active]="Web 面板服务（utnixos-pro-webui）运行中 ✓"
+  [repair_webui_inactive]="Web 面板服务未运行，请检查：systemctl status utnixos-pro-webui / journalctl -u utnixos-pro-webui -n 30"
 
   # commands/update.sh 更新配置
   [upd_root]="更新模式需要 root，请用：sudo bash install.sh update"

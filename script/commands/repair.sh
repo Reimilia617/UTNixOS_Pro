@@ -114,4 +114,13 @@ cmd_repair() {
   info rebuild_doing
   nixos-rebuild switch --flake "$TARGET_DIR#reimilia"
   ok repair_done
+  # 诚实验证（不猜测）：webui 启用时主动查服务真实状态
+  if grep -q '^[[:space:]]*\./modules/system/webui\.nix' "$TARGET_DIR/configuration.nix" \
+     && command -v systemctl >/dev/null 2>&1; then
+    if systemctl is-active utnixos-pro-webui >/dev/null 2>&1; then
+      ok repair_webui_active
+    else
+      warn repair_webui_inactive
+    fi
+  fi
 }
