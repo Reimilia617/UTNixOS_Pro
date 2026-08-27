@@ -139,6 +139,9 @@ ut repair          # 一键修复：/etc/nixos 坏了（缺 flake.nix/install.sh
                    # 保留机器配置，拉取最新代码重建 /etc/nixos 并重建系统
 ```
 
+> 修复入口不用记参数：管理面板菜单里有「7) 一键修复」；而且 `ut` 检测到
+> `/etc/nixos` 损坏（缺 flake.nix）时会**自动进入修复**。
+
 > 如果 `/etc/nixos` 坏到连 `ut` 都跑不了，直接用 curl 拉脚本修复（不需要 /etc/nixos 完好）：
 >
 > ```
@@ -446,6 +449,9 @@ script/
   重建 /etc/nixos 并重建系统；先全量备份、失败自动回滚
 - 11. `ut update` 加固：tarball 分支下载后强制校验完整性（缺 flake.nix 拒绝替换）、
   git 分支 reset 后校验、替换失败自动回滚——杜绝「/etc/nixos 变成残缺目录」
+- 12. 修复入口三合一：管理面板菜单新增「7) 一键修复」；`ut` 自动检测到
+  /etc/nixos 损坏（缺 flake.nix）时自动进入修复；curl|bash 传参兼容
+  `bash -s -- repair` 参数落在 $0/$1 两种 sh 实现
 
 ## Ver1.1
 

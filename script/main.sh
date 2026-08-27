@@ -62,8 +62,13 @@ main() {
       *) args+=("$a") ;;
     esac
   done
+  # 兼容 curl | bash -s -- <mode>：部分 sh 实现把第一个参数放进 $0 而不是 $1
+  [[ "$0" == "--no-apple" ]] && NO_APPLE=1
 
   local mode="${args[0]:-auto}"
+  if [[ "$mode" == "auto" && "$0" =~ ^(install|update|menu|rollback|repair|dashboard|panel|--rollback|--repair)$ ]]; then
+    mode="$0"
+  fi
   case "$mode" in
     install)  cmd_install ;;
     update)   cmd_update ;;
@@ -73,12 +78,16 @@ main() {
     panel|dash|dashboard) cmd_dashboard ;;
     auto)
       # 自动判断：
-      #   - live/安装器环境（无 /etc/nixos 且存在 nixos 用户）→ 安装部署界面
+      #   - live/安装器环境（根是 overlay 或 nixos 用户）→ 安装部署界面
       #   - 已装系统上又挂载了全新 /mnt 并已生成硬件配置 → 安装部署界面（重装）
+      #   - 已装系统但 /etc/nixos 配置缺失/损坏（缺 flake.nix）→ 一键修复
       #   - 其他（已装系统）→ 管理面板
       if is_live_env \
          || [[ -d "$MOUNT_ROOT/etc/nixos" && -f "$MOUNT_ROOT/etc/nixos/hardware-configuration.nix" ]]; then
         cmd_install
+      elif [[ ! -f "$INSTALL_DIR/flake.nix" ]]; then
+        warn auto_repair_hint
+        cmd_repair
       else
         cmd_dashboard
       fi

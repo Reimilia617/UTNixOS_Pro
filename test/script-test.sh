@@ -270,6 +270,14 @@ grep -q 'nixos-rebuild switch --flake /etc/nixos#reimilia' /tmp/stub.log \
 # 备份目录应存在（/etc/nixos.repair-*）
 ls -d /etc/nixos.repair-* >/dev/null 2>&1 && ok "repair 生成备份目录" || bad "repair 未备份旧配置"
 
+# stdin 形式：bash -s -- repair（参数可能落在 $0 或 $1，两种都要能进修复）
+rm -f /etc/nixos/flake.nix
+INPUT=()   # 跳过重建（n ），只验证路由与恢复
+pty_in "bash -s -- repair < /repo/install.sh" /tmp/t65b.out 'n'
+grep -E "一键修复|已跳过重建|✓|✗" /tmp/t65b.out | head -5
+grep -q "一键修复" /tmp/t65b.out && ok "bash -s -- repair（stdin）能进修复" || bad "stdin 形式未进修复: $(tail -3 /tmp/t65b.out)"
+[ -f /etc/nixos/flake.nix ] && ok "stdin 修复后 flake.nix 存在" || bad "stdin 修复后 flake.nix 缺失"
+
 echo ""
 echo "========== 测试 7：auto 默认路由（live → 安装 / 已装 → 管理面板） =========="
 # BUG 回归（ut 打不开管理面板）：已装 NixOS 的 PATH 里同样有 nixos-install

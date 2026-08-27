@@ -1,6 +1,6 @@
 # UTNixOS_Pro 命令：管理面板（script/commands/dashboard.sh）
 # ut 命令 / install.sh 无参数时的默认入口。
-# 提供：重建系统 / 清理垃圾 / 更换模块 / 更新配置 / 更新Flake / 回滚。
+# 提供：重建系统 / 清理垃圾 / 更换模块 / 更新配置 / 更新Flake / 回滚 / 一键修复。
 
 cmd_dashboard() {
   banner
@@ -22,9 +22,10 @@ cmd_dashboard() {
     say dash_opt5
     say dash_opt6
     say dash_opt7
+    say dash_opt8
     prompt dash_choose
     local choice=""
-    read -r choice < /dev/tty || choice="7"
+    read -r choice < /dev/tty || choice="8"
     case "$choice" in
       1)
         info rebuild_doing
@@ -53,6 +54,9 @@ cmd_dashboard() {
         cmd_rollback
         ;;
       7)
+        cmd_repair
+        ;;
+      8)
         say dash_bye
         return 0
         ;;

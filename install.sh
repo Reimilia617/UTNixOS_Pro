@@ -68,6 +68,8 @@ if [[ -z "$SCRIPT_SRC" ]]; then
   for _a in "$@"; do
     [[ "$_a" == "--no-apple" ]] && no_apple=1
   done
+  # 兼容 curl | bash -s -- --no-apple：部分 sh 实现把第一个参数放进 $0
+  [[ "$0" == "--no-apple" ]] && no_apple=1
 
   BOOT_TMP="$(mktemp -d)"
   trap 'rm -rf "$BOOT_TMP"' EXIT
