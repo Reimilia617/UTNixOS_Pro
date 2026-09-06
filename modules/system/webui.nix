@@ -1,11 +1,21 @@
 { config, lib, pkgs, ... }:
 
-# UTNixOS_Pro Web 管理面板（模块被导入即启用；设 services.utnixos-pro-webui.enable = false 可关闭）
+# UTNixOS_Pro Web 管理面板（内置常驻组件：模块随 configuration.nix 无条件导入）
 #
-# 功能：系统用户名/密码（PAM）登录，浏览器访问
-#   http://127.0.0.1:8090   （默认仅本机，不会暴露到公网）
-# 提供：重建系统 / 更新系统 / 模块启停（读写 configuration.nix）/
-#       时间点回滚（generations）/ 实时日志 / 清理构建垃圾 / 审计。
+# 角色：本系统唯一的「配置与管理」入口（去 Bash 脚本化之后）：
+#   - Go 后端以 systemd 守护进程方式常驻（本文件定义 unit utnixos-pro-webui），
+#     直接读写 /etc/nixos 下的配置文件（configuration.nix / home-manager.nix /
+#     host/packages.nix / host/grub-device.nix / .utnixos-pro-selection），
+#     并以参数数组方式执行 nixos-rebuild / nix / git / journalctl 等命令。
+#   - 浏览器访问 http://127.0.0.1:8090（默认仅本机，不会暴露到公网）。
+#   - 安装后请用 `ut` 命令快捷打开面板（见 modules/system/ut.nix）。
+#
+# 功能：重建系统 / 更新配置(同步 GitHub+重建) / 更新 Flake / 模块启停 /
+#       软件包(声明式+临时) / 时间点回滚(generations) / 实时日志 / 清理垃圾 / 审计。
+#
+# 不再可选项：面板是系统内置，WebUI 模块页不再提供「启用/关闭」开关；
+#   install.sh 的模块选择也不再包含 webui。想极端关闭只能手动在
+#   configuration.nix 删除本模块导入（会导致 ut 失去管理入口，不推荐）。
 #
 # 安全提醒：
 #   - 默认只监听 127.0.0.1。想在内网其他设备访问时：
@@ -19,13 +29,11 @@ let
 in
 {
   options.services."utnixos-pro-webui" = {
-    # 注意：默认 true（导入即启用）。之前默认 false 且全仓库没有任何地方把它
-    # 设为 true，导致即便 configuration.nix 取消注释，服务也永远不会被创建——
-    # rebuild 成功但 systemctl 永远 inactive、8090 永远不通。
+    # 注意：默认 true（导入即启用）。面板是内置管理入口，请保持默认。
     enable = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "是否启用 UTNixOS_Pro Web 管理面板（模块被导入即启用；设 false 可关闭）。";
+      description = "是否启用 UTNixOS_Pro Web 管理面板（内置组件，默认 true；请勿关闭）。";
     };
 
     port = lib.mkOption {
@@ -65,7 +73,7 @@ in
 
   config = lib.mkIf cfg.enable {
     systemd.services."utnixos-pro-webui" = {
-      description = "UTNixOS_Pro Web 管理面板";
+      description = "UTNixOS_Pro Web 管理面板（系统唯一管理入口）";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
@@ -85,6 +93,7 @@ in
       serviceConfig = {
         Type = "simple";
         ExecStart = "${cfg.package}/bin/webui --addr ${cfg.address}:${toString cfg.port} --config-dir /etc/nixos --state-dir /var/lib/utnixos-pro-webui --pam-service utnixos-pro-webui --allowed-group ${cfg.allowedGroup}";
+        # 守护进程：崩溃自动拉起；健康退出（如 systemctl stop）则保持停止
         Restart = "on-failure";
         RestartSec = "3";
         # 审计日志目录（/var/lib/utnixos-pro-webui）

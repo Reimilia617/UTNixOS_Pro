@@ -208,7 +208,7 @@ document.querySelectorAll('.actions [data-op]').forEach(btn => {
 /* ---------- 模块 ---------- */
 let moduleOverview = null;
 
-/* 模块选项的中文显示名（与 TUI 菜单的 opt_* 对应；找不到就用原始名） */
+/* 模块选项的中文显示名（与 install.sh 安装向导的 opt_* 对应；找不到就用原始名） */
 const OPT_LABELS = {
   'xfce': 'XFCE（轻量经典桌面）', 'gnome': 'GNOME（现代简洁桌面）', 'kde': 'KDE Plasma（可定制桌面）',
   'lxqt': 'LXQt（极轻量桌面）', 'hyprland': 'Hyprland（平铺 Wayland）', 'cosmic': 'COSMIC（System76 新桌面）',

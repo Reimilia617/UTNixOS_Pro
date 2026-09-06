@@ -7,13 +7,13 @@ import (
 	"strings"
 )
 
-// hostPackagesFile 是 Web 面板安装的软件包清单（机器本地文件，update.sh 会保护它）。
+// hostPackagesFile 是 Web 面板安装的软件包清单（机器本地文件，Web 面板「更新配置」会保护它）。
 const hostPackagesFile = "/host/packages.nix"
 
 // declarativePackagesTemplate 是 host/packages.nix 的初始内容。
 const declarativePackagesTemplate = `# UTNixOS_Pro - Web 管理面板安装的软件包（机器本地文件，自动维护）
 # 警告：此文件由 Web 管理面板写入，请勿手动编辑；手动编辑请保持本格式。
-# 更新配置（ut update）时会自动保留本文件。
+# 更新配置（Web 面板「更新配置」同步 GitHub 代码）时会自动保留本文件。
 { pkgs, ... }:
 
 {
@@ -61,7 +61,7 @@ func (e *Editor) writeDeclarativePackages(attrs []string) error {
 	var b strings.Builder
 	b.WriteString(`# UTNixOS_Pro - Web 管理面板安装的软件包（机器本地文件，自动维护）
 # 警告：此文件由 Web 管理面板写入，请勿手动编辑；手动编辑请保持本格式。
-# 更新配置（ut update）时会自动保留本文件。
+# 更新配置（Web 面板「更新配置」同步 GitHub 代码）时会自动保留本文件。
 { pkgs, ... }:
 
 {

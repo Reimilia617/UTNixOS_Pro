@@ -1,7 +1,7 @@
 // Package config 负责读写 /etc/nixos 下的配置文件：
-//   - configuration.nix 的模块 imports（注释/取消注释，与 script/lib/selection.sh 的 sed 语义一致）
+//   - configuration.nix 的模块 imports（注释/取消注释，与 install.sh 安装向导的 sed 语义一致）
 //   - home-manager.nix 的 shell 导入同步
-//   - .utnixos-pro-selection 状态文件（与 TUI ut 菜单共用同一份状态）
+//   - .utnixos-pro-selection 状态文件（与 install.sh 共用同一份状态）
 //   - host/packages.nix（Web 面板安装的软件包，机器本地文件）
 package config
 
@@ -40,7 +40,7 @@ type importLine struct {
 	matched   bool   // 是否匹配模块导入格式
 }
 
-// parseImportLine 解析一行。只识别 ./modules/ 开头的导入（与 TUI sed 行为一致）。
+// parseImportLine 解析一行。只识别 ./modules/ 开头的导入（与 install.sh sed 行为一致）。
 func parseImportLine(line string) importLine {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" {
@@ -79,7 +79,7 @@ func setCommented(raw string, commented bool) string {
 }
 
 // setModuleEnabled 修改 configuration.nix 中指定模块（如 "desktop/xfce.nix"）的启停状态。
-// 返回该模块是否在文件中找到。文件里没有对应行时不报错（与 TUI 行为一致）。
+// 返回该模块是否在文件中找到。文件里没有对应行时不报错（与 install.sh 行为一致）。
 func (e *Editor) setModuleEnabled(module string, enabled bool) (bool, error) {
 	path := e.dir + "/configuration.nix"
 	data, err := os.ReadFile(path)
@@ -140,7 +140,7 @@ func (e *Editor) commentCategory(category string) error {
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
 }
 
-// setHomeShell 同步 home/home-manager.nix 的 shell 导入（与 selection.sh 一致）。
+// setHomeShell 同步 home/home-manager.nix 的 shell 导入（与 install.sh 安装向导一致）。
 func (e *Editor) setHomeShell(shell string) error {
 	path := e.dir + "/home/home-manager.nix"
 	data, err := os.ReadFile(path)
@@ -183,7 +183,7 @@ func homeShellName(body string) (string, bool) {
 
 // writeGrubDevice 维护机器本地文件 host/grub-device.nix：
 // configuration.nix 始终 import 该文件；选中 GRUB(BIOS) 时写入目标磁盘，
-// 否则写成空模块（不产生任何配置）。与 selection.sh 的 write_grub_device 同语义。
+// 否则写成空模块（不产生任何配置）。与 install.sh 的 write_grub_device 同语义。
 func (e *Editor) writeGrubDevice(st State) error {
 	f := e.dir + "/host/grub-device.nix"
 	if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
@@ -195,7 +195,7 @@ func (e *Editor) writeGrubDevice(st State) error {
 			dev = "/dev/sda"
 		}
 		content := fmt.Sprintf(`# UTNixOS_Pro - GRUB(BIOS) 引导设备（机器本地文件，自动维护）
-# 警告：此文件由安装脚本 / Web 管理面板自动写入，请勿手动编辑；ut update 时会自动保留。
+# 警告：此文件由安装脚本 / Web 管理面板自动写入，请勿手动编辑。
 { ... }: {
   boot.loader.grub.device = %q;
 }

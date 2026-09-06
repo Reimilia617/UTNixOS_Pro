@@ -407,7 +407,7 @@ func (s *Server) updateConfig(emit func(string)) error {
 			return err
 		}
 	}
-	// 重新标记 skip-worktree（与 update.sh 一致，防止后续误覆盖）
+	// 重新标记 skip-worktree（防止后续误覆盖）
 	_ = gitCmd(dir, "update-index", "--skip-worktree",
 		"hardware-configuration.nix", "host/packages.nix").Run()
 

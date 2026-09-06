@@ -6,14 +6,12 @@
     # Hardware
     ./hardware-configuration.nix
 
-    # System Plugins
+    # System Plugins（系统模块：用 Web 面板「模块」页 / 安装向导管理）
     ./modules/system/auto-update.nix     # AUTO-Update
     ./modules/system/clean.nix     # AUTO-Clean-Rubbish
     ./modules/system/nix-command.nix     # Advanced package manager
     ./modules/system/zram.nix     # Memory ZSTD
     ./modules/system/fonts.nix     # Fonts(默认启用)
-    ./modules/system/ut.nix     # ut命令(UTNixOS_Pro管理接口)
-    ./modules/system/webui.nix     # Web管理面板(默认启用,http://127.0.0.1:8090)
     #./modules/system/nopwdtodesktop.nix     # Auto Login
     #./modules/system/vm-debug.nix     # VM调试(无头启动,默认关闭,见文件内说明)
     #./modules/system/secrets.nix     # sops-nix密钥管理(模板,默认关闭)
@@ -21,7 +19,12 @@
     #./modules/system/backup.nix     # restic定时备份(模板,默认关闭)
     #./modules/system/security.nix     # fail2ban安全(模板,默认关闭)
 
-    # Bootloader（用 `ut menu` / 安装菜单选择，GRUB 可选主题）
+    # 内置组件（Web 管理面板 = 唯一管理入口，ut = 快捷打开面板；二者不可关闭，
+    # 不要在此注释它们——配置与管理一律交给 WebUI，install.sh 只负责安装/修复/回滚）
+    ./modules/system/ut.nix     # ut命令(快捷启动Web管理面板)
+    ./modules/system/webui.nix     # Web管理面板(内置常驻,http://127.0.0.1:8090)
+
+    # Bootloader（用 Web 面板「模块」页 / 安装向导选择，GRUB 可选主题）
     ./modules/boot/grub.nix     # GRUB(UEFI)
     #./modules/boot/grub-bios.nix     # GRUB(BIOS/传统启动,目标磁盘见 host/grub-device.nix)
     #./modules/boot/systemd-boot.nix     #systemd-boot(UEFI-Only)

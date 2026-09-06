@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// ---------- 模块清单（与 script/lib/selection.sh 的菜单保持同一套分类） ----------
+// ---------- 模块清单（与 install.sh 的安装向导保持同一套分类） ----------
 
 // SingleGroup 是单选分类（桌面/引导/语言/输入法/镜像/Shell）。
 type SingleGroup struct {
@@ -64,9 +64,15 @@ var singleGroups = []struct {
 	{"shell", "默认 Shell", "shell", []string{"zsh", "bash", "fish"}},
 }
 
-// systemModules / advancedModules 与 selection.sh 中的列表一致（webui 默认启用）。
-var systemModules = []string{"auto-update", "clean", "nix-command", "zram", "fonts", "webui", "nopwdtodesktop", "vm-debug"}
+// systemModules / advancedModules 与 install.sh 安装向导中的列表一致。
+// 注意：webui 不再是可选项（系统内置、始终启用），因此不在此列表中；
+// 强行置入状态文件的旧版 webui 值会在 Load/Apply 时被清洗掉。
+var systemModules = []string{"auto-update", "clean", "nix-command", "zram", "fonts", "nopwdtodesktop", "vm-debug"}
 var advancedModules = []string{"secrets", "impermanence", "backup", "security"}
+
+// coreModules 是系统内置、不可关闭的模块文件（Web 面板 + ut 命令）：
+// 应用选择时强制启用，且不展示在「可启停模块 / 其他模块」里。
+var coreModules = []string{"system/webui.nix", "system/ut.nix"}
 
 // optionFiles 返回某个单选选项对应的模块文件列表（boot 特殊：GRUB 主题单独开关）。
 func optionFiles(key, name string) []string {
@@ -110,7 +116,7 @@ func (e *Editor) Overview() (*Overview, error) {
 		ov.Single[g.key] = sg
 	}
 
-	// boot 组附加信息：GRUB 主题开关 / GRUB(BIOS) 目标磁盘（读状态文件，与 TUI 共用）
+	// boot 组附加信息：GRUB 主题开关 / GRUB(BIOS) 目标磁盘（读状态文件，与 install.sh 共用）
 	if sg, ok := ov.Single["boot"]; ok {
 		st := e.LoadState()
 		th := st.GrubTheme
@@ -136,6 +142,10 @@ func (e *Editor) Overview() (*Overview, error) {
 	}
 	for _, m := range advancedModules {
 		managed["system/"+m+".nix"] = true
+	}
+	// 内置核心模块（webui/ut）不出现在「其他模块」里
+	for _, f := range coreModules {
+		managed[f] = true
 	}
 
 	modsDir := e.dir + "/modules"
@@ -173,14 +183,14 @@ func (e *Editor) itemsFor(names []string) []ModuleItem {
 	return out
 }
 
-// ---------- 选择状态（.utnixos-pro-selection，与 TUI 共用） ----------
+// ---------- 选择状态（.utnixos-pro-selection，与 install.sh 共用） ----------
 
 // State 是一份完整的模块选择。
 type State struct {
 	Desktop       string   `json:"desktop"`
 	Boot          string   `json:"boot"`
-	GrubTheme     bool     `json:"grubTheme"`   // GRUB 主题开关（仅 GRUB 时有效）
-	GrubDevice    string   `json:"grubDevice"`  // GRUB(BIOS) 目标磁盘
+	GrubTheme     bool     `json:"grubTheme"`  // GRUB 主题开关（仅 GRUB 时有效）
+	GrubDevice    string   `json:"grubDevice"` // GRUB(BIOS) 目标磁盘
 	Locale        string   `json:"locale"`
 	Input         string   `json:"input"`
 	Mirror        string   `json:"mirror"`
@@ -189,7 +199,7 @@ type State struct {
 	Advanced      []string `json:"advanced"`
 }
 
-// DefaultState 与 selection.sh 的 run_menu 默认值一致。
+// DefaultState 与 install.sh 安装向导的默认值一致（webui 为系统内置，不在此列）。
 func DefaultState() State {
 	return State{
 		Desktop:       "xfce",
@@ -200,11 +210,13 @@ func DefaultState() State {
 		Input:         "ibus",
 		Mirror:        "ustc",
 		UserShell:     "zsh",
-		SystemModules: []string{"auto-update", "clean", "nix-command", "zram", "fonts", "webui"},
+		SystemModules: []string{"auto-update", "clean", "nix-command", "zram", "fonts"},
 	}
 }
 
 // LoadState 从 .utnixos-pro-selection 读取（文件不存在时返回默认值）。
+// 历史格式清洗：旧状态文件（webui 还是可选项时）的 SYSTEM_MODULES 里可能有 webui，
+// 现在 webui 是系统内置，读取时一律剔除，避免校验失败或误注释。
 func (e *Editor) LoadState() State {
 	st := DefaultState()
 	data, err := os.ReadFile(e.dir + "/.utnixos-pro-selection")
@@ -260,18 +272,8 @@ func (e *Editor) LoadState() State {
 		st.Boot = "grub-uefi"
 		st.GrubTheme = false
 	}
-	// 状态迁移：v1（webui 默认开启之前的格式）的 SYSTEM_MODULES 里没有 webui，
-	// 重放时补上，避免旧状态把默认启用的 webui 注释掉（8090 永远起不来）。
-	// 必须在 SYSTEM_MODULES 解析之后执行。
-	webuiOn := false
-	for _, m := range st.SystemModules {
-		if m == "webui" {
-			webuiOn = true
-		}
-	}
-	if vals["STATE_VERSION"] != "2" && !webuiOn {
-		st.SystemModules = append(st.SystemModules, "webui")
-	}
+	// 清洗：webui 已内置，从 SYSTEM_MODULES 中去掉（旧状态里可能有）
+	st.SystemModules = stripModule(st.SystemModules, "webui")
 	if st.GrubDevice == "" {
 		st.GrubDevice = "/dev/sda"
 	}
@@ -286,11 +288,22 @@ func splitFields(s string) []string {
 	return out
 }
 
-// SaveState 把选择写入 .utnixos-pro-selection（与 TUI 同格式，可互相读取）。
-// STATE_VERSION=2：webui 默认启用之后的格式；旧状态（无版本号）加载时补上 webui。
+// stripModule 从模块列表里剔除某个模块名（返回新切片，不改写原数组）。
+func stripModule(list []string, name string) []string {
+	var out []string
+	for _, m := range list {
+		if m != name {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// SaveState 把选择写入 .utnixos-pro-selection（与 install.sh 同格式，可互相读取）。
+// STATE_VERSION=3：webui 已升级为系统内置（不再出现在 SYSTEM_MODULES）。
 func (e *Editor) SaveState(st State) error {
-	content := fmt.Sprintf(`# UTNixOS_Pro 模块选择状态（由 Web 管理面板 / install.sh 生成，可手动修改后重新运行 update）
-STATE_VERSION=2
+	content := fmt.Sprintf(`# UTNixOS_Pro 模块选择状态（由 Web 管理面板 / install.sh 生成，可手动修改后重新应用）
+STATE_VERSION=3
 DESKTOP=%s
 BOOT=%s
 GRUB_THEME=%s
@@ -314,7 +327,7 @@ func yesNo(b bool) string {
 	return "no"
 }
 
-// ---------- 应用选择（等价 selection.sh 的 apply_selection） ----------
+// ---------- 应用选择（等价 install.sh 的 apply_selection） ----------
 
 // Validate 校验 State 的取值是否都在白名单内。
 func (e *Editor) Validate(st State) error {
@@ -347,6 +360,9 @@ func (e *Editor) Validate(st State) error {
 		}
 	}
 	for _, m := range st.SystemModules {
+		if m == "webui" {
+			continue // 历史遗留值：webui 已内置，读取时清洗，不参与白名单
+		}
 		if !known(systemModules, m) {
 			return fmt.Errorf("系统模块 %q 不在白名单内", m)
 		}
@@ -367,7 +383,11 @@ func (e *Editor) Validate(st State) error {
 
 // Apply 把 State 写入 configuration.nix + home-manager.nix + 状态文件。
 // 返回修改摘要；不会触发重建（重建由 /api/ops 完成）。
+// Web 管理面板（system/webui.nix）与 ut 命令（system/ut.nix）是系统内置：
+// 无论状态怎么选都强制启用，且不纳入可停用范围。
 func (e *Editor) Apply(st State) ([]string, error) {
+	// 清洗历史遗留的 webui 值（旧状态/旧前端可能提交），webui 内置不受开关控制
+	st.SystemModules = stripModule(st.SystemModules, "webui")
 	if err := e.Validate(st); err != nil {
 		return nil, err
 	}
@@ -442,6 +462,16 @@ func (e *Editor) Apply(st State) ([]string, error) {
 				return nil, err
 			}
 			changed = append(changed, fmt.Sprintf("进阶模块 %s %s", m, onOff(on)))
+		}
+	}
+
+	// 内置核心模块强制启用（即便旧机器上这两行被注释过也恢复；找不到行则忽略）
+	for _, f := range coreModules {
+		if !e.ModuleEnabled(f) {
+			if err := e.SetModuleEnabled(f, true); err != nil {
+				return nil, err
+			}
+			changed = append(changed, "内置模块强制启用 "+f)
 		}
 	}
 

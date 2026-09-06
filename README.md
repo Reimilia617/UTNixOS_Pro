@@ -10,8 +10,9 @@
  #######     ##    ##    ## #### ##     ##  #######   ###### ######## ##       ##   ##   ######
 ```
 
-一个把 **NixOS** 从「装到哪算哪」变成「想要什么就在菜单里选一下」的个人配置。模块化、可回滚、多主机，外加一点点东方厨的浪漫。
+一个把 **NixOS** 从「装到哪算哪」变成「想要什么就在面板里点一下」的个人配置。模块化、可回滚、多主机，外加一点点东方厨的浪漫。
 
+- **管理系统**：Web 管理面板（Go 后端 + systemd 守护进程常驻）是**唯一**的日常管理入口——重建 / 更新 / 换模块 / 装软件 / 回滚 / 日志全在浏览器里完成；`install.sh` 只负责全新安装与应急修复/回滚。
 - ⚠ **重要提示**：不要同时启用多个同类型的功能模块，会引起冲突！
 - 提示：没啥可更新的了，直接变 LTS 长期(不)维护了 (o′┏▽┓┛o)
 - 注意：写完这篇 README 的时候 NixOS 已经出到了 26.05，所有测试也都是基于 26.05 测试的！
@@ -22,7 +23,8 @@
 
 - [特性](#特性)
 - [快速开始（交互式安装脚本）](#快速开始交互式安装脚本)
-- [ut 命令：系统的管理总接口](#ut-命令系统的管理总接口)
+- [ut 命令：快捷打开 Web 管理面板](#ut-命令快捷打开-web-管理面板)
+- [Web 管理面板（内置，系统唯一管理入口）](#web-管理面板内置系统唯一管理入口)
 - [系统回滚（保险方案）](#系统回滚保险方案)
 - [手动安装](#手动安装不用脚本也行)
 - [Flake 使用](#flake-使用)
@@ -31,7 +33,7 @@
 - [测试与 CI](#测试与-ci)
 - [VM 调试](#vm调试构建虚拟机测试系统用)
 - [彩蛋（Bad Apple!!）](#彩蛋bad-apple)
-- [脚本结构](#脚本结构跟-nixos-配置一样是模块化的)
+- [仓库结构](#仓库结构单文件脚本--web-面板--nix-配置)
 - [🙏 致谢与代码来源](#-致谢与代码来源)
 - [👥 贡献者](#-贡献者)
 - [更新日志](#更新日志)
@@ -40,9 +42,12 @@
 
 # 特性~(￣▽￣)~*
 
-- 默认 XFCE 桌面环境，可选 GNOME/KDE/LXQT/Hyprland/COSMIC
+- **Web 管理面板是唯一管理入口**：Go 后端以 systemd 守护进程（`utnixos-pro-webui`）常驻，直接读写 `/etc/nixos` 配置；浏览器打开 `http://127.0.0.1:8090` 即可 重建/更新/回滚/装软件/换模块/看日志
+- `ut` 命令：一键快捷打开 Web 管理面板（服务没跑会自动拉起）
+- `install.sh`：仓库里唯一保留的脚本（单文件、中英双语）——全新安装向导 / 修复配置 / UT紧急回滚
+- 默认 XFCE 桌面环境，可选 GNOME/KDE/LXQT/Hyprland/COSMIC（安装向导选一次，之后 Web 面板随便换）
 - IBus + Rime 输入法（可选 Fcitx5，KDE 用户推荐选 Fcitx5 呢）
-- 将 ZSH 作为默认 SHELL（可选 Bash/Fish，用 `ut menu` 一键切换）
+- 将 ZSH 作为默认 SHELL（可选 Bash/Fish，Web 面板「模块」页一键切换）
 - Home-Manager 管理：Oh My ZSH + Powerlevel10K + 开机名言彩蛋 + 声明式配置(git/ssh/fzf)
 - 使用 GRUB 作为引导加载器（UEFI / BIOS 传统启动可选；也可选 Systemd-boot，启动更快但不支持主题）
 - 安装/更换引导时先选「GRUB(UEFI) / GRUB(BIOS) / systemd-boot」，选 GRUB 再问要不要东方主题（默认开）
@@ -50,12 +55,11 @@
 - 默认全英文环境，可选为中文环境
 - 模块化配置结构
 - Flake + Home-Manager（XDG 目录规范 + git/ssh/fzf 声明式配置）
-- 5 个系统优化模块：自动更新/自动清理/ZRAM 压缩/Flakes 实验特性/免密自动登录(默认关)
+- 系统优化模块：自动更新/自动清理/ZRAM 压缩/Flakes 实验特性/免密自动登录(默认关)
 - 统一字体方案（Noto + Nerd Font，中英文通用）
-- 交互式安装/更新脚本（install.sh）+ `ut` 系统管理命令
 - CI + 虚拟机启动测试 + 代码格式化（treefmt/statix/deadnix）
 - 多主机支持（flake 里加一行即可新增机器）
-- 系统回滚（含 `curl --rollback` 保险方案）
+- 系统回滚（含 `curl --rollback` 应急保险方案）
 
 ---
 
@@ -89,13 +93,15 @@
    > curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash -s -- --no-apple
    > ```
    > 同时装的时候在镜像源菜单里选个快的（中科大/清华）。
-3. 一条命令弹出交互式菜单：
+3. 一条命令进入交互安装（脚本里可再选：全新安装 / 修复配置 / UT紧急回滚）：
    ```
    curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | bash
    ```
    菜单里自由选择：引导加载器（GRUB/UEFI、GRUB/BIOS、systemd-boot，GRUB 会再问要不要主题，BIOS 还会问目标磁盘）/桌面环境/语言/输入法/镜像源/Shell/系统模块/进阶模块，
+   然后设置**系统用户名与初始密码**（回车=默认 `reimilia` / `123456`；密码输入不回显、可自定义，脚本用 sed 同步写进配置），
    脚本会自动修改 configuration.nix（和 home-manager.nix）、生成硬件配置、执行 `nixos-install` 部署系统。
-4. 安装完成后 reboot，用 `reimilia / 123456` 登录，第一时间执行 `passwd` 修改密码！
+   （Web 管理面板与 `ut` 命令是**系统内置**，装完自动启用，不用也不可选——见下文。）
+4. 安装完成后 reboot，用**安装时设置的用户名/密码**（默认 `reimilia` / `123456`）登录，第一时间执行 `passwd` 修改密码！
 
 ### 中英双语（自动选择）
 
@@ -112,74 +118,115 @@ UTNIXOS_PRO_LANG=zh  ut      # 强制中文
 UTNIXOS_PRO_LANG=en  ut      # 强制英文（例如在无法显示中文的终端上）
 ```
 
-## ut 命令：系统的管理总接口（安装后内置）
+## ut 命令：快捷打开 Web 管理面板（安装后内置）
 
-只要用了本配置，整个系统都由 `ut` 管理，想换什么就换：
-
-```
-ut                    # 打开管理面板（等价于 sudo install.sh）
-```
-
-管理面板提供：
-
-- 1) 重建系统（nixos-rebuild switch）
-- 2) 清理构建垃圾（nix-collect-garbage -d）
-- 3) 选择/更换模块（桌面/引导/Shell/输入法等，自动改配置）
-- 4) 更新配置（从 GitHub 同步最新代码 + 重建）
-- 5) 更新 Flake（nix flake update 所有输入 + 重建）
-- 6) 系统回滚（选择之前的 generation）
-
-常用快捷方式：
+系统的日常管理与配置**全部在 Web 面板里完成**，终端里只需要记住一个命令：
 
 ```
-ut update          # 更新配置（同步代码+重建）
-ut menu            # 只换模块（比如换桌面/Shell）
-ut rollback        # 系统回滚
-ut repair          # 一键修复：/etc/nixos 坏了（缺 flake.nix/install.sh，ut 崩）时，
-                   # 保留机器配置，拉取最新代码重建 /etc/nixos 并重建系统
+ut                    # 快捷启动 Web 管理面板
 ```
 
-> 修复入口不用记参数：管理面板菜单里有「7) 一键修复」；而且 `ut` 检测到
-> `/etc/nixos` 损坏（缺 flake.nix）时会**自动进入修复**。
->
-> **「更新配置」和「一键修复」的区别**：
-> - `ut update`（菜单 4）＝ **配置完好时**的常规升级：增量同步最新代码并重建。
-> - `ut repair`（菜单 7）＝ **配置损坏/丢失时**的全量重建：备份 + 恢复机器文件 + 拉最新代码。
-> - `ut update` 发现配置损坏时会**自动切换到修复**，不会卡死报错。
+`ut` 会：
+1. 检查 systemd 服务 `utnixos-pro-webui` 是否运行；没运行会自动尝试拉起
+   （图形会话走 polkit 授权框；SSH/无头环境会提示 `sudo systemctl start utnixos-pro-webui`）；
+2. 有桌面会话时用浏览器打开 `http://127.0.0.1:8090`，无图形环境则打印面板地址；
+3. 提示用**系统用户名/密码**登录（仅 wheel 组）。
 
-> 如果 `/etc/nixos` 坏到连 `ut` 都跑不了，直接用 curl 拉脚本修复（不需要 /etc/nixos 完好）：
->
-> ```
-> curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | sudo bash -s -- repair
-> ```
->
-> 修复会先全量备份 `/etc/nixos` 到 `/etc/nixos.repair-<时间戳>`，并保留
-> `hardware-configuration.nix` / `host/packages.nix` / `host/grub-device.nix` / 模块选择状态。
+> `ut` 现在是系统内置二进制（不再透传给 install.sh，也没有 shell 别名覆盖它）。
+> 它只负责「打开面板」；面板里能做：重建 / 更新配置 / 更新 Flake / 更换模块 /
+> 软件包 / 回滚 / 日志 / 清理垃圾 / 审计。
+
+## Web 管理面板（内置，系统唯一管理入口）
+
+从本版本起 **Web 管理面板不再是可选项**：它作为 systemd 守护进程
+（`utnixos-pro-webui`，开机自启、崩溃自动拉起）与系统绑定，模块页/安装向导里
+都不再有「启用 webui」开关。日常管理请用浏览器访问：
+
+```
+http://127.0.0.1:8090
+```
+
+用**系统用户名和密码**登录（PAM 认证，与终端登录一致；只允许 `wheel` 组用户，
+可在模块里改 `allowedGroup`）。
+
+> Go 后端以 root 运行并**直接读写 `/etc/nixos` 下的配置文件**（configuration.nix /
+> home-manager.nix / host/packages.nix / host/grub-device.nix / 状态文件），
+> 所有 nix/git 命令均以参数数组方式执行（无 shell 拼接）。
+
+## 功能一览
+
+| 功能 | 说明 |
+| --- | --- |
+| 重建系统 | `nixos-rebuild switch`，实时输出控制台 |
+| 更新系统 | 同步 GitHub 代码 + 重建 / 仅更新 Flake + 重建（`git fetch + reset` 时自动保留机器文件） |
+| 模块启停 | 读写 `configuration.nix`（与 install.sh 安装向导同一套选择逻辑，共用 `.utnixos-pro-selection`） |
+| 软件包 | 搜索 nixpkgs、**声明式安装**（写入 `host/packages.nix`，重建后保留）、**临时安装**（`nix profile`，重建后失效） |
+| 时间点回滚 | 列出系统 generations（带时间），选择回滚 |
+| 系统日志 | `journalctl` 查看 + 实时跟踪（按服务过滤） |
+| 清理垃圾 | `nix-collect-garbage -d` |
+| 审计 | 所有操作记录在 `/var/lib/utnixos-pro-webui/audit.log` |
+
+## 安全说明（重要）
+
+- 面板以 root 运行（需要执行 nixos-rebuild），**默认只监听 `127.0.0.1`，防火墙零开放**，不会暴露到公网。
+- 想在内网其他设备访问时，两种方式：
+  - **推荐**：保持 127.0.0.1，用 SSH 隧道 `ssh -L 8090:127.0.0.1:8090 user@主机`
+  - 或修改模块选项 `services.utnixos-pro-webui = { address = "0.0.0.0"; allowLan = true; }` 开放防火墙端口（此时密码明文走网络，请仅在可信内网使用，或自备 HTTPS 反代）。
+- 登录有频率限制（1 分钟 5 次失败封禁）；所有输入（包名/模块/日志 unit）都有白名单校验，命令以参数数组执行，无 shell 注入面。
+
+## 自定义
+
+```nix
+services.utnixos-pro-webui = {
+  port = 8090;                # 端口
+  address = "127.0.0.1";      # 监听地址（默认仅本机）
+  allowLan = false;           # 允许内网访问（开防火墙端口）
+  allowedGroup = "wheel";     # 允许登录的管理员组
+};
+```
+
+源码在 `webui/` 目录（Go + 原生 JS，零第三方依赖），可单独构建：`nix build .#webui`。
+Web 面板的「更新配置」会自动保留 `host/packages.nix`、`host/grub-device.nix` 和 `hardware-configuration.nix`。
 
 ---
 
 # 系统回滚（保险方案）
 
-- 常规回滚：`ut` → 选 6，或 `sudo bash install.sh rollback`
+- 常规回滚：Web 面板「回滚」页选择某个 generation（或 `install.sh` 里选「UT紧急回滚」）。
 - **本地脚本/配置坏了也能回滚**：直接 curl 最新脚本加 `--rollback` 参数：
   ```
   curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.sh | sudo bash -s -- --rollback
   ```
-  回滚不依赖 /etc/nixos 里的配置，只操作系统 generations。
+  install.sh 是单文件自包含脚本，回滚不依赖 /etc/nixos 里的配置，只操作系统 generations
+  （会显示「UT紧急回滚」入口）。
 
-## 更新系统（不用 ut 也行）
+## install.sh：安装 / 修复配置 / UT紧急回滚
+
+进入脚本（无参数）会弹出交互入口，可选三项（中英双语，虚拟控制台自动英文）：
 
 ```
-sudo bash /etc/nixos/install.sh update     # 从GitHub同步最新代码 + 重建
+sudo bash /etc/nixos/install.sh        # 交互入口
+sudo bash /etc/nixos/install.sh repair # 直接修复配置
+sudo bash /etc/nixos/install.sh rollback
 ```
+
+- **全新安装**：NixOS live 环境安装向导（见「快速开始」）。
+- **修复配置（repair）**：`/etc/nixos` 被搞坏（缺 flake.nix/install.sh，面板失去配置）时，
+  先全量备份 `/etc/nixos` 到 `/etc/nixos.repair-<时间戳>`，保留
+  `hardware-configuration.nix` / `host/packages.nix` / `host/grub-device.nix` / 模块选择状态，
+  再拉取最新代码重建并重放选择，最后询问是否重建系统。
+- **UT紧急回滚**：列出系统 generations，回车=回滚到上一个版本，或输入编号回滚到指定 generation。
+
+> 日常的「重建/更新配置/换模块」请用 `ut` 打开 Web 面板完成——install.sh 不再提供这些
+> 管理子命令（面板是唯一管理入口）。
 
 ---
 
 # 手动安装（不用脚本也行）
 
 1. 使用 cfdisk 分区（如果你喜欢用别的也可以）
-   - ⚠ 提示：最好是 UEFI+GPT；若是只能 BIOS 启动，用 `ut menu` 选择「GRUB(BIOS)」并按提示输入目标磁盘
-     （脚本会写入 `host/grub-device.nix` 的 `boot.loader.grub.device`，无需再手动改模块）
+   - ⚠ 提示：最好是 UEFI+GPT；若是只能 BIOS 启动，装好后在 Web 面板「模块」页选择「GRUB(BIOS)」并按提示输入目标磁盘
+     （面板会写入 `host/grub-device.nix` 的 `boot.loader.grub.device`，无需手动改模块）
    - Tips: 如果你是 UEFI 启动可选择 Systemd-boot，启动速度更快，但是不支持主题
 2. 格式化分区并挂载（UEFI 记得把 ESP 挂到 `/mnt/boot`，别挂 `/mnt/boot/efi`，见上方「全新安装」的注意事项）
 3. 使用 `nixos-generate-config --root /mnt` 获取配置文件，配置文件存储在 `"/你挂载的目录/etc/nixos/"` 下
@@ -210,12 +257,13 @@ nixos-install --option substituters "https://mirrors.ustc.edu.cn/nix-channels/st
 
 # 常用模块速查
 
-- 桌面：`modules/desktop/*.nix`（默认 xfce，其他取消注释即可切换）
+- 桌面：`modules/desktop/*.nix`（默认 xfce，Web 面板「模块」页切换，无需手改）
 - 引导：`modules/boot/{grub,grub-bios,systemd-boot}.nix`（GRUB 主题 `grub-theme.nix` 可选；BIOS 目标磁盘在 `host/grub-device.nix`）
 - 输入法：`modules/input/{ibus,fcitx5}.nix`
 - 语言：`modules/locale/{en_US,zh_CN}.nix`
 - 镜像：`modules/mirrors/{ustc,tuna,nju,sjtu}.nix`（中科大 / 清华 / 南大 / 上海交大）
-- 系统优化：`modules/system/*.nix`（auto-update/clean/zram/nix-command/fonts/nopwdtodesktop/vm-debug）
+- 系统优化：`modules/system/*.nix`（auto-update/clean/zram/nix-command/fonts/nopwdtodesktop/vm-debug，Web 面板开关）
+- **内置（不可关闭）**：`modules/system/webui.nix`（Web 管理面板）+ `modules/system/ut.nix`（ut 命令）
 
 ---
 
@@ -270,7 +318,7 @@ nixos-install --option substituters "https://mirrors.ustc.edu.cn/nix-channels/st
 
 # 彩蛋（Bad Apple!!）
 
-在**任意菜单界面**（`ut` 主菜单 / `ut menu` 模块选择 / 安装时的选择菜单）输入 `touhou` 回车，
+在**交互入口菜单**（install.sh 进入时的选择菜单）或**安装向导的模块选择菜单**里输入 `touhou` 回车，
 会播放 `media/badapple.mp4`（東方萃夢想 · Bad Apple!! 影绘）。
 
 - 大小写不限（touhou / Touhou / TOUHOU!!! 都行）
@@ -284,81 +332,35 @@ curl -L https://raw.githubusercontent.com/Reimilia617/UTNixOS_Pro/main/install.s
 ```
 
 用 `--no-apple` 安装的系统没有 badapple.mp4，彩蛋会提示而不是报错；
-想补上就把 mp4 放进 `/etc/nixos/media/` 再 `ut` 重建。
+想补上就把 mp4 放进 `/etc/nixos/media/`，再在 Web 面板里重建系统即可。
 
 ---
 
-# Web 管理面板（默认启用）
+# 仓库结构（单文件脚本 + Web 面板 + Nix 配置）
 
-UTNixOS_Pro 自带一个 **Web 管理面板**：浏览器里完成原本 `ut` 终端菜单能做的所有事。
-**新装系统默认开启**，`systemd` 会自动启动面板，浏览器打开：
-
-```
-http://127.0.0.1:8090
-```
-
-用**系统用户名和密码**登录（PAM 认证，与终端登录一致；只允许 `wheel` 组用户，可在模块里改 `allowedGroup`）。
-
-> 如果之前装的旧系统没有面板，用 `ut menu` 勾选系统模块里的 webui（或手动取消
-> `configuration.nix` 中 `./modules/system/webui.nix` 的注释）后重建即可。
-
-## 功能一览
-
-| 功能 | 说明 |
-| --- | --- |
-| 重建系统 | `nixos-rebuild switch`，实时输出控制台 |
-| 更新系统 | 同步 GitHub 代码 + 重建（等同 `ut update`） / 仅更新 Flake + 重建 |
-| 模块启停 | 读写 `configuration.nix`（与 `ut menu` 同一套选择逻辑，共用 `.utnixos-pro-selection`） |
-| 软件包 | 搜索 nixpkgs、**声明式安装**（写入 `host/packages.nix`，重建后保留）、**临时安装**（`nix profile`，重建后失效） |
-| 时间点回滚 | 列出系统 generations（带时间），选择回滚 |
-| 系统日志 | `journalctl` 查看 + 实时跟踪（按服务过滤） |
-| 清理垃圾 | `nix-collect-garbage -d` |
-| 审计 | 所有操作记录在 `/var/lib/utnixos-pro-webui/audit.log` |
-
-## 安全说明（重要）
-
-- 面板以 root 运行（需要执行 nixos-rebuild），**默认只监听 `127.0.0.1`，防火墙零开放**，不会暴露到公网。
-- 想在内网其他设备访问时，两种方式：
-  - **推荐**：保持 127.0.0.1，用 SSH 隧道 `ssh -L 8090:127.0.0.1:8090 user@主机`
-  - 或修改模块选项 `services.utnixos-pro-webui = { address = "0.0.0.0"; allowLan = true; }` 开放防火墙端口（此时密码明文走网络，请仅在可信内网使用，或自备 HTTPS 反代）。
-- 登录有频率限制（1 分钟 5 次失败封禁）；所有输入（包名/模块/日志 unit）都有白名单校验，命令以参数数组执行，无 shell 注入面。
-
-## 自定义
-
-```nix
-services.utnixos-pro-webui = {
-  enable = true;
-  port = 8090;                # 端口
-  address = "127.0.0.1";      # 监听地址（默认仅本机）
-  allowLan = false;           # 允许内网访问（开防火墙端口）
-  allowedGroup = "wheel";     # 允许登录的管理员组
-};
-```
-
-源码在 `webui/` 目录（Go + 原生 JS，零第三方依赖），可单独构建：`nix build .#webui`。
-`ut update` / Web 面板的「更新配置」会自动保留 `host/packages.nix`、`host/grub-device.nix` 和 `hardware-configuration.nix`。
-
----
-
-# 脚本结构（跟 NixOS 配置一样是模块化的）
-
-bash 脚本与 NixOS 配置的 `modules/` 同理，拆成了小模块，方便维护和扩展：
+> 去 Bash 脚本化之后：bash 只保留一个自包含的 `install.sh`（全新安装 / 修复配置 /
+> UT紧急回滚）；日常管理与配置全部交给 Web 面板（Go 后端，systemd 守护进程常驻，
+> 直接读写 `/etc/nixos`）。
 
 ```
-install.sh                      # 薄引导器：找到/拉取模块并加载（兼容 curl|bash）
-script/
-├── main.sh                     # 主程序：加载所有模块 + 命令路由
-├── lib/                        # 基础设施（自动加载）
-│   ├── env.sh                  # 配置变量（仓库地址、路径、镜像源）
-│   ├── util.sh                 # 输出/菜单/sed工具/ASCII画
-│   ├── selection.sh            # 模块选择逻辑（改 configuration.nix / home-manager.nix）
-│   └── easteregg.sh            # 彩蛋（touhou → Bad Apple）
-└── commands/                   # 命令（新增命令=往这里丢一个 .sh 定义 cmd_xxx 即可）
-    ├── install.sh              # cmd_install   全新安装
-    ├── update.sh               # cmd_update    更新配置
-    ├── menu.sh                 # cmd_menu      更换模块
-    ├── rollback.sh             # cmd_rollback  系统回滚
-    └── dashboard.sh            # cmd_dashboard 管理面板
+install.sh                      # 唯一脚本：单文件、中英双语、交互入口(安装/修复/UT紧急回滚)
+webui/                          # Web 管理面板（Go 后端 + 原生 JS，零第三方依赖）
+├── cmd/webui/main.go           # 入口（监听 127.0.0.1:8090，可配）
+├── internal/config/            # 直接读写 /etc/nixos 配置（模块启停/软件包/状态文件）
+├── internal/nix/               # nix/nixos-rebuild/journalctl 等命令封装（参数数组，无 shell）
+├── internal/server/            # HTTP 路由 / PAM 登录 / 会话 / 后台任务 / 审计 / 日志
+└── web/static/                 # 前端页面（go:embed）
+modules/                        # NixOS 模块
+├── system/webui.nix            # ★ 内置：Web 面板 systemd 服务（不可关闭，唯一管理入口）
+├── system/ut.nix               # ★ 内置：ut 命令（快捷启动 Web 面板）
+├── system/*.nix                # 可选系统模块（auto-update/clean/zram/... 在 Web 面板里开关）
+├── desktop|boot|locale|input|mirrors|shell/ ...   # 单选模块（Web 面板/安装向导选择）
+configuration.nix               # 模块总入口（webui/ut 无条件导入）
+home/                           # home-manager 配置（ZSH/别名等）
+host/                           # 机器本地文件（packages.nix / grub-device.nix，Web 面板自动维护）
+flake.nix                       # flake（多主机 + 自建包 webui + 测试）
+test/                           # 容器测试（install.sh 功能 / WebUI API 等）
+nixos-tests/boot.nix            # KVM 启动冒烟测试（CI 用）
 ```
 
 ---
@@ -409,7 +411,7 @@ script/
 | 贡献 | 角色 | 说明 |
 | --- | --- | --- |
 | **所有上游开源开发者** | 奠基者 🏆 | NixOS 生态、Home-Manager、Oh My ZSH、P10K、hyfetch、sops-nix、disko、impermanence、nixos-hardware、各字体/壁纸作者……没有他们的成果就没有这个项目。**功劳最大的是他们。** |
-| **DeepSeek** | AI 协作开发者 🤖 | 交互式安装/更新脚本（install.sh）、`ut` 管理中枢、脚本模块化重构、回滚保险方案、CI/测试、进阶模块模板、绝大部分文档撰写。 |
+| **DeepSeek** | AI 协作开发者 🤖 | 交互式安装脚本（install.sh 单文件化）、Web 管理面板（Go 后端 + systemd 守护进程）、`ut` 面板快捷启动、回滚保险方案、CI/测试、进阶模块模板、绝大部分文档撰写。 |
 | **Reimilia617** | 项目发起人 / 制作人 👤 | 需求定义与方向、NixOS 配置的架构与模块规划、东方主题/彩蛋的品味把控、素材收集与最终测试。 |
 
 > **为什么这么排？** 一个个人配置仓库，技术上真正难的是「有人先把 NixOS 生态做出来」。所以我把最多的敬意留给上游开源开发者；DeepSeek 帮我把「想做的东西」高效地变成了「能用的代码」；而我负责的是让这一切「符合我的口味」。请把掌声先给前面的人。
@@ -417,6 +419,33 @@ script/
 ---
 
 # 更新日志
+
+## Ver3.0（去 Bash 脚本化：Web 面板成为唯一管理入口）
+
+- 1. **系统管理全面交给 Web 面板**：Go 后端（`webui/`）以 systemd 守护进程
+  （`utnixos-pro-webui`）常驻，**直接读写 `/etc/nixos` 配置文件**并执行 nix/git 命令；
+  日常的 重建/更新配置/更新 Flake/换模块/装软件/回滚/日志/清理垃圾 全在浏览器完成
+- 2. **Web 面板不再是可选项**：`modules/system/webui.nix`（连同 `ut.nix`）改为
+  configuration.nix 无条件导入的内置组件；模块页与安装向导都不再有「webui」开关；
+  安装/应用选择时强制恢复其导入（老机器即使注释过也会被重新打开）
+- 3. **install.sh 收拢为单文件自包含脚本**，删除整个 `script/` 模块树：
+  - 进入脚本（无参数）＝交互入口菜单：① 全新安装 ② 修复配置（repair）③ UT紧急回滚
+  - 不再有 dashboard/menu/update 管理子命令（已并入 Web 面板）；误用旧命令会给出指引
+  - 中英双语保留：Linux 虚拟控制台（TERM=linux）自动英文，避免中文方块
+  - 回滚/修复/安装都不再依赖「旁边的 script/ 模块」，curl|bash 单文件即可应急
+- 4. **`ut` 命令改为快捷启动 Web 面板**：检查/自动拉起 systemd 服务（图形会话走
+  polkit 授权），再 xdg-open 打开 `http://127.0.0.1:8090`；无图形环境打印地址。
+  删除 home-manager 里的 `ut` shell 别名（避免覆盖系统内置二进制）
+- 5. 状态文件升级 STATE_VERSION=3（webui 内置，SYSTEM_MODULES 不再包含它）；
+  旧状态里的 webui 值在 bash/Go 两侧读取时都会被清洗
+- 6. 测试/文档同步：install.sh 功能测试（安装/入口菜单/修复/UT紧急回滚/双语）、
+  WebUI API 测试、KVM 启动冒烟测试（含 `ut` 二进制与无头打印地址）全部更新
+- 7. **安装时可自定义系统用户名与初始密码**：用户名/密码提问放在模块选择之后
+  （回车=默认 `reimilia` / `123456`；密码输入不回显、自定义需二次确认，sha512 哈希），
+  全部用 `sed` 写回配置——`modules/users/reimilia.nix`（账号名/description/哈希）、
+  `flake.nix`（home-manager.users）、`home/home-manager.nix`（username/homeDirectory）、
+  `modules/system/nopwdtodesktop.nix`（免密自动登录用户名）；
+  默认账号时不改动任何文件，完全兼容旧流程
 
 ## Ver2.6（三个重要 Bug 修复）
 
@@ -436,7 +465,7 @@ script/
   - Web 面板改为**默认启用**（系统模块默认勾选 + configuration.nix 默认打开），装完即可访问
     `http://127.0.0.1:8090`
   - KVM 启动冒烟测试新增面板服务/健康检查断言，CI 会真实构建并启动面板验证
-- 4. Web 面板模块页新增：GRUB 主题开关、GRUB(BIOS) 目标磁盘输入（与 TUI 共用状态文件）
+- 4. Web 面板模块页新增：GRUB 主题开关、GRUB(BIOS) 目标磁盘输入（与安装菜单共用状态文件）
 - 5. 新增上海交大镜像源（`sjtu`，`https://mirror.sjtu.edu.cn/nix-channels/store`），
   菜单与 Web 面板均可见，安装/更新脚本的 substituters 同步支持
 - 6. 修正 ESP 挂载点误导：教程改为把 ESP 挂到 `/mnt/boot`（NixOS 默认 GRUB/systemd-boot

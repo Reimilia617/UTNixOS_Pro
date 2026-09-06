@@ -121,16 +121,22 @@ echo "$ST" | grep -q '"hasFlake":true' && ok "status 识别 flake 配置目录" 
 echo "$ST" | grep -q '"configDir":"/etc/nixos"' && ok "status 配置目录正确" || bad "status: $ST"
 MODS=$(api http://127.0.0.1:8090/api/modules)
 echo "$MODS" | grep -q '"key":"desktop"' && ok "modules 含 desktop 组" || bad "modules 缺 desktop"
-echo "$MODS" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['single']['desktop']['current']=='xfce', d['single']['desktop']; assert d['single']['boot']['current']=='grub-uefi', d['single']['boot']; assert d['single']['boot']['grubTheme'] is True; assert any(m['name']=='webui' and m['enabled'] for m in d['multi']['system']['options']); assert len(d['other'])>0; print('modules 结构正确: desktop=xfce boot=grub-uefi(主题开) webui=on other=%d' % len(d['other']))" \
-  && ok "modules 结构与当前配置一致" || bad "modules 结构异常"
+echo "$MODS" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['single']['desktop']['current']=='xfce', d['single']['desktop']; assert d['single']['boot']['current']=='grub-uefi', d['single']['boot']; assert d['single']['boot']['grubTheme'] is True; assert not any(m['name']=='webui' for m in d['multi']['system']['options']), 'webui 不应再作为可选项出现'; assert not any(m['file'] in ('system/webui.nix','system/ut.nix') for m in d['other']), '内置模块不应出现在 other'; assert len(d['other'])>0; print('modules 结构正确: desktop=xfce boot=grub-uefi(主题开) webui=内置 other=%d' % len(d['other']))" \
+  && ok "modules 结构与当前配置一致（webui 已内置，不出现在可选列表）" || bad "modules 结构异常"
+# 内置 webui/ut 在 configuration.nix 中必须始终启用（不可关闭）
+grep -q '^[[:space:]]*\./modules/system/webui\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 内置 webui 导入启用" || bad "webui 内置导入缺失"
+grep -q '^[[:space:]]*\./modules/system/ut\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 内置 ut 导入启用" || bad "ut 内置导入缺失"
 
-# 5. 模块应用（切换到 kde；webui 默认已开启）
+# 5. 模块应用（切换到 kde；请求里带上历史遗留的 webui 也应被接受并清洗）
 SEL='{"selection":{"desktop":"kde","boot":"grub-uefi","grubTheme":true,"grubDevice":"/dev/sda","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'
 RES=$(api -X POST http://127.0.0.1:8090/api/modules/apply -H 'Content-Type: application/json' -d "$SEL")
 echo "$RES" | grep -q '"changed"' && ok "modules/apply 返回修改摘要" || bad "modules/apply: $RES"
 grep -q '^[[:space:]]*\./modules/desktop/kde\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 已切到 kde" || bad "configuration.nix 未切换"
-grep -q '^[[:space:]]*\./modules/system/webui\.nix' /etc/nixos/configuration.nix && ok "configuration.nix 已开启 webui" || bad "webui 未开启"
-grep -q '^DESKTOP=kde$' /etc/nixos/.utnixos-pro-selection && ok ".utnixos-pro-selection 已写入（与 TUI 共用）" || bad "状态文件未写入"
+grep -q '^[[:space:]]*\./modules/system/webui\.nix' /etc/nixos/configuration.nix && ok "configuration.nix webui 内置导入保持启用" || bad "webui 内置导入被误改"
+grep -q '^[[:space:]]*\./modules/system/ut\.nix' /etc/nixos/configuration.nix && ok "configuration.nix ut 内置导入保持启用" || bad "ut 内置导入被误改"
+grep -q '^DESKTOP=kde$' /etc/nixos/.utnixos-pro-selection && ok ".utnixos-pro-selection 已写入（与 install.sh 共用）" || bad "状态文件未写入"
+! grep -q 'SYSTEM_MODULES=.*webui' /etc/nixos/.utnixos-pro-selection \
+  && ok "状态文件 SYSTEM_MODULES 不含 webui（历史值已被清洗）" || bad "状态文件不该含 webui"
 
 # 5.5 模块应用：切到 GRUB(BIOS) 应写入目标磁盘（BIOS 引导修复回归）
 SEL_BIOS='{"selection":{"desktop":"kde","boot":"grub-bios","grubTheme":true,"grubDevice":"/dev/vdb","locale":"en_US","input":"ibus","mirror":"ustc","userShell":"zsh","systemModules":["auto-update","clean","nix-command","zram","fonts","webui"],"advanced":[]}}'

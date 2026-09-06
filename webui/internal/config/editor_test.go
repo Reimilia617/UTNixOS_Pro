@@ -96,6 +96,7 @@ func TestApplySelection(t *testing.T) {
 	st.Input = "fcitx5"
 	st.Mirror = "tuna"
 	st.UserShell = "fish"
+	// 附带历史遗留的 webui（webui 已升级为系统内置）：Apply 应清洗掉而不是报错
 	st.SystemModules = []string{"auto-update", "clean", "nix-command", "zram", "fonts", "webui"}
 	st.Advanced = []string{"secrets", "backup"}
 
@@ -119,7 +120,8 @@ func TestApplySelection(t *testing.T) {
 		"locale/en_US.nix":        false,
 		"input/fcitx5.nix":        true,
 		"mirrors/tuna.nix":        true,
-		"system/webui.nix":        true,
+		"system/webui.nix":        true, // 内置：始终启用
+		"system/ut.nix":           true, // 内置：始终启用
 		"system/secrets.nix":      true,
 		"system/backup.nix":       true,
 		"system/impermanence.nix": false,
@@ -164,12 +166,15 @@ func TestApplySelection(t *testing.T) {
 		t.Errorf("home-manager.nix 中 zsh/bash 未注释:\n%s", hm)
 	}
 
-	// 状态文件回读
+	// 状态文件回读（webui 已被清洗，不再出现在 SYSTEM_MODULES）
 	st2 := e.LoadState()
 	if st2.Desktop != "kde" || st2.Boot != "systemd-boot" || st2.UserShell != "fish" {
 		t.Errorf("LoadState 回读不一致: %+v", st2)
 	}
-	if !contains(st2.SystemModules, "webui") || !contains(st2.Advanced, "secrets") {
+	if contains(st2.SystemModules, "webui") {
+		t.Errorf("webui 应被清洗出 SYSTEM_MODULES: %+v", st2)
+	}
+	if !contains(st2.SystemModules, "auto-update") || !contains(st2.Advanced, "secrets") {
 		t.Errorf("LoadState 多选回读不一致: %+v", st2)
 	}
 }
@@ -274,14 +279,24 @@ func TestOverview(t *testing.T) {
 	if ov.Single["boot"].GrubTheme == nil || !*ov.Single["boot"].GrubTheme {
 		t.Errorf("boot 组应带 grubTheme=true（默认 GRUB+主题），got %v", ov.Single["boot"].GrubTheme)
 	}
+	// webui 已内置：不应出现在「系统模块」多选组，也不应出现在「其他模块」（只读）里；
+	// 但 configuration.nix 中的导入必须始终启用。
 	found := false
 	for _, m := range ov.Multi["system"].Options {
-		if m.Name == "webui" && m.Enabled {
+		if m.Name == "webui" {
 			found = true
 		}
 	}
-	if !found {
-		t.Error("system 多选组应包含已启用的 webui 选项（默认开启）")
+	if found {
+		t.Error("system 多选组不应包含 webui（已内置为不可选项）")
+	}
+	if !e.ModuleEnabled("system/webui.nix") {
+		t.Error("内置 webui 模块应始终启用")
+	}
+	for _, m := range ov.Other {
+		if m.File == "system/webui.nix" || m.File == "system/ut.nix" {
+			t.Errorf("内置模块 %s 不应出现在 other 里", m.File)
+		}
 	}
 	if len(ov.Other) == 0 {
 		t.Error("应展示其他模块（network/users 等）")
